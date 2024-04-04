@@ -2,7 +2,7 @@
 
 # pyanglianwater
 
-A one-liner description of your project goes here.
+A module to interact with Anglian Water and retrieve smart meter usage.
 
 [![Build Status](https://github.com/pantherale0/pyanglianwater/workflows/build/badge.svg)](https://github.com/pantherale0/pyanglianwater/actions)
 [![Coverage Status](https://coveralls.io/repos/github/pantherale0/pyanglianwater/badge.svg?branch=main)](https://coveralls.io/github/pantherale0/pyanglianwater?branch=main)
@@ -12,8 +12,6 @@ A one-liner description of your project goes here.
 <img src="https://raw.githubusercontent.com/justintime50/assets/main/src/python-template/showcase.png" alt="Showcase">
 
 </div>
-
-A longer paragraph description of your project goes here.
 
 ## Install
 
