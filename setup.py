@@ -31,9 +31,9 @@ DEV_REQUIREMENTS = [
 ]
 
 setuptools.setup(
-    name='pyanglianwater_URL',
+    name='pyanglianwater',
     version=version,
-    description='Your project description here',
+    description='A package to interact with Anglian Water',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='http://github.com/pantherale0/pyanglianwater',
@@ -59,5 +59,5 @@ setuptools.setup(
     extras_require={
         'dev': DEV_REQUIREMENTS,
     },
-    python_requires='>=3.8, <4',
+    python_requires='>=3.10, <4',
 )
