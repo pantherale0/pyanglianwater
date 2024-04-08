@@ -69,7 +69,7 @@ class API:
                 "PartternSetup": False,
                 "PreviousEmailId": "",
                 "Regikey": "",
-                "Vkont": self.ts
+                "Vkont": str(self.ts)
             }
         )
         await self.send_request(
@@ -84,7 +84,7 @@ class API:
                 "PartternSetup": True,
                 "PreviousEmailId": "",
                 "Regikey": "",
-                "Vkont": self.ts
+                "Vkont": str(self.ts)
             }
         )
         await self.send_request(
