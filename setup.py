@@ -39,12 +39,6 @@ setuptools.setup(
     url='http://github.com/pantherale0/pyanglianwater',
     author='pantherale0',
     license='MIT',
-    packages=setuptools.find_packages(
-        exclude=[
-            'examples',
-            'test',
-        ]
-    ),
     package_data={
         'pyanglianwater': [
             'py.typed',
