@@ -15,6 +15,8 @@ class UnknownEndpointError(Exception):
 class ExpiredAccessTokenError(Exception):
     """401 Unauthorized"""
 
+class TariffNotAvailableError(Exception):
+    """Tariff information not available or set."""
 
 API_RESPONSE_STATUS_CODE_MAPPING = {
     "E_LGN_006": InvalidPasswordError,
