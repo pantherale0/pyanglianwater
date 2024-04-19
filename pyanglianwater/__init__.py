@@ -12,6 +12,7 @@ class AnglianWater:
 
     api: API = None
     current_usage: float = None
+    current_cost: float = None
     current_readings: list = None
     estimated_charge: float = None
     current_balance: float = None
@@ -89,6 +90,7 @@ class AnglianWater:
                                        date.today()-timedelta(days=1))
         self.current_usage = usages["total"]
         self.current_readings = usages["readings"]
+        self.current_cost = usages["cost"]
 
     @classmethod
     async def create_from_api(
