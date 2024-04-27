@@ -27,7 +27,7 @@ API_ENDPOINTS = {
 
 
 API_APP_KEY = "2.7$1.9.3$Android$samsung$SM-N9005$11"
-API_PARTNER_KEY = "Mobile${EMAIL}${TS}${DEV_ID}${APP_KEY}"
+API_PARTNER_KEY = "Mobile${EMAIL}${ACC_NO}${DEV_ID}${APP_KEY}"
 
 ANGLIAN_WATER_TARIFFS = {
     "standard": {

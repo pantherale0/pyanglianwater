@@ -22,7 +22,6 @@ class API:
     username = None
     _password = None
     device_id = None
-    ts = None
     account_number = None
     primary_bp_number = None
     next_refresh = None
@@ -32,13 +31,13 @@ class API:
         if self.access_token is None:
             return API_PARTNER_KEY.format(
                 EMAIL="undefined",
-                TS="undefined",
+                ACC_NO="undefined",
                 DEV_ID=self.device_id,
                 APP_KEY=API_APP_KEY
             )
         return API_PARTNER_KEY.format(
                 EMAIL=self.username,
-                TS=self.ts,
+                ACC_NO=self.account_number,
                 DEV_ID=self.device_id,
                 APP_KEY=API_APP_KEY
             )
@@ -69,7 +68,7 @@ class API:
                 "PartternSetup": False,
                 "PreviousEmailId": "",
                 "Regikey": "",
-                "Vkont": str(self.ts)
+                "Vkont": str(self.account_number)
             }
         )
         await self.send_request(
@@ -84,7 +83,7 @@ class API:
                 "PartternSetup": True,
                 "PreviousEmailId": "",
                 "Regikey": "",
-                "Vkont": str(self.ts)
+                "Vkont": str(self.account_number)
             }
         )
         await self.send_request(
@@ -132,8 +131,6 @@ class API:
                 "UserName": self.username
             })
         self.access_token = resp["Data"][0]["AuthToken"]
-        #self.ts = round((datetime.now() + timedelta(days=5)).timestamp() / 10, 0)
-        self.ts = 171260490
         self.primary_bp_number = resp["Data"][0]["PrimaryBPNumber"]
         self.account_number = resp["Data"][0]["PrimaryAccountNumber"]
         if self.next_refresh is None:
