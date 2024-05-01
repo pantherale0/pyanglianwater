@@ -15,6 +15,9 @@ class UnknownEndpointError(Exception):
 class ExpiredAccessTokenError(Exception):
     """401 Unauthorized"""
 
+class ServiceUnavailableError(Exception):
+    """503 Service Unavailable."""
+
 class TariffNotAvailableError(Exception):
     """Tariff information not available or set."""
 

@@ -10,7 +10,8 @@ from .const import API_BASEURL, API_ENDPOINTS, API_APP_KEY, API_PARTNER_KEY
 from .exceptions import (
     API_RESPONSE_STATUS_CODE_MAPPING,
     ExpiredAccessTokenError,
-    UnknownEndpointError
+    UnknownEndpointError,
+    ServiceUnavailableError
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -173,6 +174,9 @@ class API:
                     if _response.status == 401:
                         self.access_token = None
                         raise ExpiredAccessTokenError()
+                    if _response.status == 503:
+                        self.access_token = None
+                        raise ServiceUnavailableError()
                 # Check StatusCode in response body.
                 resp_body = await _response.json()
                 if resp_body["StatusCode"] == "0":
