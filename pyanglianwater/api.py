@@ -167,16 +167,16 @@ class API:
                 json=body
             ) as _response:
                 if not _response.ok:
-                    _LOGGER.error(">> Error sending request %s to Anglian Water (%s) - %s",
-                                  endpoint,
-                                  _response.status,
-                                  await _response.text())
                     if _response.status == 401:
                         self.access_token = None
                         raise ExpiredAccessTokenError()
                     if _response.status == 503:
                         self.access_token = None
                         raise ServiceUnavailableError()
+                    _LOGGER.error(">> Error sending request %s to Anglian Water (%s) - %s",
+                                  endpoint,
+                                  _response.status,
+                                  await _response.text())
                 # Check StatusCode in response body.
                 resp_body = await _response.json()
                 if resp_body["StatusCode"] == "0":
