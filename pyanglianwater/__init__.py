@@ -1,11 +1,20 @@
 """The core Anglian Water module."""
 
+import calendar
 from datetime import date, timedelta, datetime
 
 from .api import API
-from .const import ANGLIAN_WATER_TARIFFS
+from .const import ANGLIAN_WATER_AREAS
 from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError
+
+def days_in_year(year):
+    """Return number of days in a year."""
+    return 365 + calendar.isleap(year)
+
+def days(s: date, e: date):
+    """Get number of days between two dates."""
+    return (e-s).days
 
 class AnglianWater:
     """Anglian Water"""
@@ -18,7 +27,9 @@ class AnglianWater:
     current_balance: float = None
     next_bill_date: date = None
     current_tariff: str = None
+    current_tariff_area: str = None
     current_tariff_rate: float = None
+    current_tariff_service: float = None
 
     async def get_usages(self, start: date, end: date) -> dict:
         """Calculates the usage using the provided date range."""
@@ -53,6 +64,8 @@ class AnglianWater:
                 previous_read = read
                 continue
 
+        # calculate service charge
+        output["cost"] += (self.current_tariff_rate / days_in_year(start.year)) * days(start, end)
         output["readings"] = _response["MyUsageHistoryDetails"]
         return output
 
@@ -80,8 +93,9 @@ class AnglianWater:
             if bills.get("HasWaterSureTariff", False):
                 self.current_tariff = "WaterSure"
             else:
-                self.current_tariff = "standard"
-                self.current_tariff_rate = ANGLIAN_WATER_TARIFFS["standard"]["rate"]
+                self.current_tariff = "Standard"
+                self.current_tariff_rate = ANGLIAN_WATER_AREAS[
+                    self.current_tariff_area]["Standard"]["rate"]
             if bills["NextBillDate"] is not None:
                 self.next_bill_date = bills["NextBillDate"]
 
@@ -96,19 +110,26 @@ class AnglianWater:
     async def create_from_api(
         cls,
         api: API,
+        area: str = None,
         tariff: str = None,
-        custom_rate: float = None
+        custom_rate: float = None,
+        custom_service: float = None
     ) -> 'AnglianWater':
         """Create a new instance of Anglian Water from the API."""
         self = cls()
         self.api = api
-        if tariff is not None and tariff not in ANGLIAN_WATER_TARIFFS:
+        if area is not None and area not in ANGLIAN_WATER_AREAS:
             raise TariffNotAvailableError("The provided tariff does not exist.")
-        if tariff is not None and tariff in ANGLIAN_WATER_TARIFFS:
+        if tariff is not None and area in ANGLIAN_WATER_AREAS:
+            if tariff not in ANGLIAN_WATER_AREAS[area]:
+                raise TariffNotAvailableError("The provided tariff does not exist.")
             self.current_tariff = tariff
-            if ANGLIAN_WATER_TARIFFS[tariff].get("custom", False):
+            self.current_tariff_area = area
+            if ANGLIAN_WATER_AREAS[area][tariff].get("custom", False):
                 self.current_tariff_rate = custom_rate
+                self.current_tariff_service = custom_service
             else:
-                self.current_tariff_rate = ANGLIAN_WATER_TARIFFS[tariff]["rate"]
+                self.current_tariff_rate = ANGLIAN_WATER_AREAS[area][tariff]["rate"]
+                self.current_tariff_service = ANGLIAN_WATER_AREAS[area][tariff]["service"]
         await self.update()
         return self
