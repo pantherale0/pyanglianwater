@@ -6,7 +6,7 @@ from datetime import date, timedelta, datetime
 from .api import API
 from .const import ANGLIAN_WATER_AREAS
 from .enum import UsagesReadGranularity
-from .exceptions import TariffNotAvailableError
+from .exceptions import TariffNotAvailableError, ExpiredAccessTokenError
 
 def days_in_year(year):
     """Return number of days in a year."""
@@ -38,18 +38,28 @@ class AnglianWater:
             "cost": 0.0,
             "readings": []
         }
-        _response = await self.api.send_request(
-            endpoint="get_usage_details",
-            body={
-                "ActualAccountNo": self.api.account_number,
-                "EmailAddress": self.api.username,
-                "IsHomeComparision": False,
-                "OccupierCount": 0,
-                "PrimaryBPNumber": self.api.primary_bp_number,
-                "ReadGranularity": str(UsagesReadGranularity.HOURLY),
-                "SelectedEndDate": end.strftime("%d/%m/%Y"),
-                "SelectedStartDate": start.strftime("%d/%m/%Y")
-            })
+        retry = False
+        while True:
+            try:
+                _response = await self.api.send_request(
+                    endpoint="get_usage_details",
+                    body={
+                        "ActualAccountNo": self.api.account_number,
+                        "EmailAddress": self.api.username,
+                        "IsHomeComparision": False,
+                        "OccupierCount": 0,
+                        "PrimaryBPNumber": self.api.primary_bp_number,
+                        "ReadGranularity": str(UsagesReadGranularity.HOURLY),
+                        "SelectedEndDate": end.strftime("%d/%m/%Y"),
+                        "SelectedStartDate": start.strftime("%d/%m/%Y")
+                    })
+                break
+            except ExpiredAccessTokenError as exc:
+                if not retry:
+                    await self.api.refresh_login()
+                    retry = True
+                else:
+                    raise ExpiredAccessTokenError from exc
         if "Data" in _response:
             _response = _response["Data"][0]
         previous_read = None
@@ -94,6 +104,8 @@ class AnglianWater:
                 self.current_tariff = "WaterSure"
             else:
                 self.current_tariff = "Standard"
+                if self.current_tariff_area is None:
+                    self.current_tariff_area = "Anglian"
                 self.current_tariff_rate = ANGLIAN_WATER_AREAS[
                     self.current_tariff_area]["Standard"]["rate"]
             if bills["NextBillDate"] is not None:
@@ -110,7 +122,7 @@ class AnglianWater:
     async def create_from_api(
         cls,
         api: API,
-        area: str = None,
+        area: str,
         tariff: str = None,
         custom_rate: float = None,
         custom_service: float = None
@@ -120,11 +132,12 @@ class AnglianWater:
         self.api = api
         if area is not None and area not in ANGLIAN_WATER_AREAS:
             raise TariffNotAvailableError("The provided tariff does not exist.")
+        if area is not None:
+            self.current_tariff_area = area
         if tariff is not None and area in ANGLIAN_WATER_AREAS:
             if tariff not in ANGLIAN_WATER_AREAS[area]:
                 raise TariffNotAvailableError("The provided tariff does not exist.")
             self.current_tariff = tariff
-            self.current_tariff_area = area
             if ANGLIAN_WATER_AREAS[area][tariff].get("custom", False):
                 self.current_tariff_rate = custom_rate
                 self.current_tariff_service = custom_service

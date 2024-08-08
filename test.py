@@ -28,7 +28,7 @@ async def main():
         except Exception as exc:
             _LOGGER.error(exc)
 
-    water = await AnglianWater.create_from_api(auth)
+    water = await AnglianWater.create_from_api(auth, area="Anglian")
     _LOGGER.debug(">> Got AnglianWater data %s", water.__dict__)
 
     while True:

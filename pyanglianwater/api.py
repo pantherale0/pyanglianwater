@@ -47,6 +47,7 @@ class API:
     async def create_via_login(cls, email: str, password: str) -> 'API':
         """Login via username and password."""
         # Generate a device ID.
+        _LOGGER.warning("Anglian Water have replaced their mobile app, device registration may no longer work. Please use a known working device ID dd7c8853855cd528 if you cannot login.")
         self = cls()
         self.username = email
         self._password = password
@@ -135,9 +136,9 @@ class API:
         self.primary_bp_number = resp["Data"][0]["PrimaryBPNumber"]
         self.account_number = resp["Data"][0]["PrimaryAccountNumber"]
         if self.next_refresh is None:
-            self.next_refresh = datetime.now()+timedelta(minutes=30)
+            self.next_refresh = datetime.now()+timedelta(minutes=20)
         else:
-            self.next_refresh += timedelta(minutes=30)
+            self.next_refresh += timedelta(minutes=20)
 
     async def send_request(self, endpoint: str, body: dict) -> dict:
         """Send a request to the API, and return the JSON response."""
@@ -178,6 +179,8 @@ class API:
                                   _response.status,
                                   await _response.text())
                 # Check StatusCode in response body.
+                if _response.content_type != "application/json":
+                    raise UnknownEndpointError(await _response.text())
                 resp_body = await _response.json()
                 if resp_body["StatusCode"] == "0":
                     # Successful request
