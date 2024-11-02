@@ -133,8 +133,8 @@ class API:
                 "UserName": self.username
             })
         self.access_token = resp["Data"][0]["AuthToken"]
-        self.primary_bp_number = resp["Data"][0]["PrimaryBPNumber"]
-        self.account_number = resp["Data"][0]["PrimaryAccountNumber"]
+        self.primary_bp_number = resp["Data"][0]["ActualBPNumber"]
+        self.account_number = resp["Data"][0]["ActualAccountNo"]
         if self.next_refresh is None:
             self.next_refresh = datetime.now()+timedelta(minutes=20)
         else:
