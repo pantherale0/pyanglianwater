@@ -5,3 +5,13 @@ skip-string-normalization = true
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+addopts = "-v -ra -q"
+log_cli = true
+log_cli_level = "INFO"
+minversion = "6.0"
+cache_dir = ".pytest_cache"

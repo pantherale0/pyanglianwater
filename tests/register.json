@@ -1,0 +1,23 @@
+{
+	"Data": [
+		{
+			"Partner": "1234567890",
+			"Vkont": "0987654321",
+			"EnableNotif": true,
+			"LanguageSetup": "en",
+			"PartternSetup": true,
+			"DeviceOs": "Android",
+			"EmailId": "customerservices@anglianwater.co.uk",
+			"DeviceId": "dd7c8853855cd528",
+			"Regikey": "",
+			"NewEmailId": "",
+			"PreviousEmailId": ""
+		}
+	],
+	"StatusCode": "0",
+	"Status": "Success",
+	"MessageID": "S_CO_002",
+	"Message": "Ok",
+	"Values": null,
+	"EnableMyUse": false
+}

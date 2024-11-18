@@ -1,0 +1,137 @@
+{
+	"Data": [
+		{
+			"TilesDetails": {
+				"IsEnableBillPayments": true,
+				"IsEnableBills": true,
+				"IsEnableUsage": true,
+				"IsEnableManagePlan": true,
+				"IsEnableSetUpPayment": false,
+				"IsEnableViewPlan": false,
+				"IsEnablePayNow": true,
+				"IsEnableSubmitReading": true,
+				"IsEnableSwitchMeter": false,
+				"IsEnableApplyToMeter": false,
+				"IsEnableMovingHome": true,
+				"IsEnableCommunityForum": false,
+				"MarketingPreference": false,
+				"IsLowerPayments": false,
+				"IsChangePayments": true,
+				"IsStubCustomer": false,
+				"IsStubOnly": false,
+				"IsMoveOut": true,
+				"CustomerType": 4,
+				"NextBillDate": "May 2025",
+				"EstimatedCharges": 144.18,
+				"PayNowAmount": -12.83,
+				"IsExtended": true,
+				"ColorCode": 0,
+				"MailingAddress": "Lancaster House, Lancaster Way, Ermine Business Park, Huntingdon PE29 6YJ ",
+				"UpdatePriorityService": false,
+				"RegisterPriorityService": true,
+				"IsUpdateMIReading": false,
+				"IsEnablePriorityServiceButton": true,
+				"IsSmartMeter": true,
+				"IsEnhancedSmartMeter": false,
+				"IsInvoiceLeak": false,
+				"ApplyToMeterPopUpDetails": [],
+				"IsOtherAmountHide": false,
+				"IsOutsortIndicator": false
+			},
+			"CurrentAccountMessages": [
+				{
+					"Values": [],
+					"MessageText": "Current Balance",
+					"MessageId": "S_CAD_7051",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				},
+				{
+					"Values": [
+						"£12.83cr"
+					],
+					"MessageText": "Amount",
+					"MessageId": "S_CAD_7002",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				},
+				{
+					"Values": [
+						"May 2025",
+						"£144"
+					],
+					"MessageText": "This is what you’ve paid so far towards your next routine bill in <<NextBillDate>> which we expect to be <<EstimatedCharges>>",
+					"MessageId": "S_CAD_7076",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				}
+			],
+			"DueAccountMessages": [
+				{
+					"Values": [],
+					"MessageText": "Next Payment",
+					"MessageId": "S_CAD_7064",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				},
+				{
+					"Values": [
+						"£12.00"
+					],
+					"MessageText": "Amount",
+					"MessageId": "S_CAD_7002",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				},
+				{
+					"Values": [
+						"15 Jun 2024"
+					],
+					"MessageText": "will be claimed by Direct Debit on [NextPaymentdate]",
+					"MessageId": "S_CAD_7009",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				},
+				{
+					"Values": [],
+					"MessageText": "Want to change your payments?",
+					"MessageId": "S_CAD_7025",
+					"MessageType": 0,
+					"IsExpanded": false,
+					"ParentId": ""
+				}
+			],
+			"BannerMessageDetails": [],
+			"MyMessageDetails": [
+				{
+					"Text": "Your bill is ready",
+					"Date": "26 Apr 2024",
+					"Time": "11:27 AM",
+					"Date_Sorting": "2024-04-26T10:27:10",
+					"TimeFormat": "2024-04-26T10:27:10",
+					"DateTime": "2024-04-26T10:27:10",
+					"DateAndTime": "2024-04-26T10:27:10",
+                    "EmailContent": "",
+                    "TemplateType": "01"
+				}
+			],
+			"Instalments12cond_details": [],
+			"IsPayNowAvailable": false,
+			"IsExpandedAny": false,
+			"PayNowType": 1,
+			"IsMultipleAccount": false
+		}
+	],
+	"StatusCode": "0",
+	"Status": "Success",
+	"MessageID": "S_CO_002",
+	"Message": "Ok",
+	"Values": null,
+	"EnableMyUse": false
+}

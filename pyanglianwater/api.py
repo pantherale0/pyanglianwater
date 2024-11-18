@@ -43,6 +43,16 @@ class API:
                 APP_KEY=API_APP_KEY
             )
 
+    def parse_login_response(self, response):
+        """Parse a login request response."""
+        self.access_token = response["Data"][0]["AuthToken"]
+        self.primary_bp_number = response["Data"][0]["ActualBPNumber"]
+        self.account_number = response["Data"][0]["ActualAccountNo"]
+        if self.next_refresh is None:
+            self.next_refresh = datetime.now()+timedelta(minutes=20)
+        else:
+            self.next_refresh += timedelta(minutes=20)
+
     @classmethod
     async def create_via_login(cls, email: str, password: str) -> 'API':
         """Login via username and password."""
@@ -132,13 +142,7 @@ class API:
                 "RememberMe": True,
                 "UserName": self.username
             })
-        self.access_token = resp["Data"][0]["AuthToken"]
-        self.primary_bp_number = resp["Data"][0]["ActualBPNumber"]
-        self.account_number = resp["Data"][0]["ActualAccountNo"]
-        if self.next_refresh is None:
-            self.next_refresh = datetime.now()+timedelta(minutes=20)
-        else:
-            self.next_refresh += timedelta(minutes=20)
+        self.parse_login_response(resp)
 
     async def send_request(self, endpoint: str, body: dict) -> dict:
         """Send a request to the API, and return the JSON response."""

@@ -1,0 +1,49 @@
+{
+	"Data": [
+		{
+			"AppServiceDetails": {
+				"MyAppVersion": "1.9.4",
+				"AppName": "anglianwater",
+				"ForceUpdate": true,
+				"AndroidPlaystore": "https://play.google.com/store/apps/details?id=uk.co.anglianwater.myapp",
+				"IOSPlaystore": "https://apps.apple.com/gb/app/anglian-water/id1470593911",
+				"IsEnableMyUse": false,
+				"IsEnableNewPayment": false,
+				"IsShowRemindMeForNewMyApp": false,
+				"AndroidPlaystoreForNewMyApp": "https://play.google.com/store/apps/details?id=uk.co.anglianwater.myaccount",
+				"IOSPlaystoreForNewMyApp": "https://apps.apple.com/gb/app/anglian-water-myaccount/id6480044746"
+			},
+			"ObjectId": "sRcpHsINDHG5Q8P5ZUFlO+I66T/9U9mCl8WpsF3RFT2XfUiFeR6ouAgKNGYrmk2w",
+			"FirstName": "Anglian",
+			"LastName": "Water",
+			"PrimaryBPNumber": "PRIBP1234567890",
+			"ActualBPNumber": "ACCBP1234567890",
+			"DisplayName": "Anglian Water",
+			"LastRegisteredDate": "08 Aug 2024",
+			"EmailAddress": "customerservices@anglianwater.co.uk",
+			"SecurityQuestion": null,
+			"SecurityAnswer": null,
+			"ActualAccountNo": "ACTACCT0987654321",
+			"PrimaryAccountNumber": "PRIACCT0987654321",
+			"SapID": "customerservices@anglianwater.co.uk",
+			"AccountNumber": null,
+			"LoginMessage": "We're aware of an issue with Visa and Mastercard card payments. This is being investigated as a priority. We're sorry for any inconvenience, and hope to have things sorted soon. ",
+			"AnswerCount": 0,
+			"AuthToken": "AUTH12345678",
+			"SupplementaryAddress": "Lancaster House, Lancaster Way, Ermine Business Park, Huntingdon PE29 6YJ ",
+			"PostalCode": "PE29 6YJ",
+			"AuthRefreshToken": "12345678",
+			"CardPaymentURL": null,
+			"PaymentAmountLimit": 5000.0,
+			"IsLoginDemoView": false,
+			"IsEnableMyUse": true,
+			"AccountDetails": []
+		}
+	],
+	"StatusCode": "0",
+	"Status": "Success",
+	"MessageID": "E_LGN_011",
+	"Message": "Sorry, but we are having problems and can not log you in at the moment. We are working to put things right as quickly as possible. Please try again later.",
+	"Values": null,
+	"EnableMyUse": false
+}

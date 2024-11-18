@@ -14,6 +14,10 @@ def days_in_year(year):
 
 def days(s: date, e: date):
     """Get number of days between two dates."""
+    if isinstance(s, datetime):
+        s = s.date()
+    if isinstance(e, datetime):
+        e = e.date()
     return (e-s).days
 
 class AnglianWater:
@@ -31,13 +35,32 @@ class AnglianWater:
     current_tariff_rate: float = None
     current_tariff_service: float = None
 
-    async def get_usages(self, start: date, end: date) -> dict:
-        """Calculates the usage using the provided date range."""
+    def parse_usages(self, _response, start, end):
+        """Parse given usage details."""
         output = {
             "total": 0.0,
             "cost": 0.0,
             "readings": []
         }
+        if "Data" in _response:
+            _response = _response["Data"][0]
+        previous_read = None
+        for reading in _response["MyUsageHistoryDetails"]:
+            output["total"] += reading["consumption"]
+            if previous_read is None:
+                previous_read = int(reading["meterReadValue"]) / 1000
+                continue
+            if self.current_tariff_rate is not None:
+                read = int(reading["meterReadValue"]) / 1000
+                output["cost"] += (read - previous_read) * self.current_tariff_rate
+                previous_read = read
+                continue
+        output["cost"] += (self.current_tariff_rate / days_in_year(start.year)) * days(start, end)
+        output["readings"] = _response["MyUsageHistoryDetails"]
+        return output
+
+    async def get_usages(self, start: date, end: date) -> dict:
+        """Calculates the usage using the provided date range."""
         retry = False
         while True:
             try:
@@ -60,24 +83,8 @@ class AnglianWater:
                     retry = True
                 else:
                     raise ExpiredAccessTokenError from exc
-        if "Data" in _response:
-            _response = _response["Data"][0]
-        previous_read = None
-        for reading in _response["MyUsageHistoryDetails"]:
-            output["total"] += reading["consumption"]
-            if previous_read is None:
-                previous_read = int(reading["meterReadValue"]) / 1000
-                continue
-            if self.current_tariff_rate is not None:
-                read = int(reading["meterReadValue"]) / 1000
-                output["cost"] += (read - previous_read) * self.current_tariff_rate
-                previous_read = read
-                continue
 
-        # calculate service charge
-        output["cost"] += (self.current_tariff_rate / days_in_year(start.year)) * days(start, end)
-        output["readings"] = _response["MyUsageHistoryDetails"]
-        return output
+        return self.parse_usages(_response, start, end)
 
     async def update(self):
         """Update cached data."""
