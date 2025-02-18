@@ -4,6 +4,7 @@ import calendar
 from datetime import date, timedelta, datetime
 
 from .api import API
+from .auth import BaseAuth
 from .const import ANGLIAN_WATER_AREAS
 from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError, ExpiredAccessTokenError
@@ -34,6 +35,10 @@ class AnglianWater:
     current_tariff_area: str = None
     current_tariff_rate: float = None
     current_tariff_service: float = None
+
+    def __init__(self, api: API):
+        """Init AnglianWater."""
+        self.api = api
 
     def parse_usages(self, _response, start, end):
         """Parse given usage details."""
@@ -126,17 +131,16 @@ class AnglianWater:
         self.current_cost = usages["cost"]
 
     @classmethod
-    async def create_from_api(
+    async def create_from_authenticator(
         cls,
-        api: API,
+        authenticator: BaseAuth,
         area: str,
         tariff: str = None,
         custom_rate: float = None,
         custom_service: float = None
     ) -> 'AnglianWater':
         """Create a new instance of Anglian Water from the API."""
-        self = cls()
-        self.api = api
+        self = cls(API(authenticator))
         if area is not None and area not in ANGLIAN_WATER_AREAS:
             raise TariffNotAvailableError("The provided tariff does not exist.")
         if area is not None:
