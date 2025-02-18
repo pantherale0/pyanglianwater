@@ -26,7 +26,7 @@ API_ENDPOINTS = {
 }
 
 
-API_APP_KEY = "2.7$1.9.3$Android$samsung$SM-N9005$11"
+API_APP_KEY = "2.7$1.9.4$Android$samsung$SM-N9005$11"
 API_PARTNER_KEY = "Mobile${EMAIL}${ACC_NO}${DEV_ID}${APP_KEY}"
 
 ANGLIAN_WATER_AREAS = {
@@ -101,7 +101,7 @@ ANGLIAN_WATER_AREAS = {
         }
     },
     "Finningley": {
-        "Standard": {
+        "Custom": {
             "custom": True,
             "rate": 0.0
         }
@@ -129,5 +129,27 @@ ANGLIAN_WATER_AREAS = {
             "rate": 0.0
         }
     },
-    "Woods Meadow": {}
+    "Woods Meadow": {
+        "Everyday": {
+            "rate": 1.746,
+            "service": 52.26
+        },
+        "Watersure": {
+            "rate": 252.08,
+            "interval_mode": True,
+            "interval": "year"
+        },
+        "LITE": {
+            "rate": 1.3095,
+            "service": 39.20
+        },
+        "Extra LITE": {
+            "rate": 0.8730,
+            "service": 26.13
+        },
+        "Custom": {
+            "custom": True,
+            "rate": 0.0
+        }
+    }
 }

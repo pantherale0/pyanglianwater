@@ -48,16 +48,16 @@ class API:
         self.access_token = response["Data"][0]["AuthToken"]
         self.primary_bp_number = response["Data"][0]["ActualBPNumber"]
         self.account_number = response["Data"][0]["ActualAccountNo"]
+        # set a low refresh interval to ensure we reload properly
         if self.next_refresh is None:
-            self.next_refresh = datetime.now()+timedelta(minutes=20)
+            self.next_refresh = datetime.now()+timedelta(minutes=15)
         else:
-            self.next_refresh += timedelta(minutes=20)
+            self.next_refresh += timedelta(minutes=15)
 
     @classmethod
     async def create_via_login(cls, email: str, password: str) -> 'API':
         """Login via username and password."""
         # Generate a device ID.
-        _LOGGER.warning("Anglian Water have replaced their mobile app, device registration may no longer work. Please use a known working device ID dd7c8853855cd528 if you cannot login.")
         self = cls()
         self.username = email
         self._password = password
@@ -172,9 +172,14 @@ class API:
                 json=body
             ) as _response:
                 if not _response.ok:
-                    if _response.status == 401:
+                    if _response.status == 401 and endpoint == "login":
                         self.access_token = None
                         raise ExpiredAccessTokenError()
+                    if _response.status == 401 and endpoint != "login":
+                        # refresh access token
+                        await self.refresh_login()
+                        # retry sending request
+                        return await self.send_request(endpoint, body)
                     if _response.status == 503:
                         self.access_token = None
                         raise ServiceUnavailableError()
