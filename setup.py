@@ -27,7 +27,7 @@ DEV_REQUIREMENTS = [
     'mypy == 1.9.*',
     'pytest == 8.*',
     'pytest-cov == 4.*',
-    'twine == 4.*',
+    'twine >= 4,< 7',
 ]
 
 setuptools.setup(
