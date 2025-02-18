@@ -1,10 +1,15 @@
 """The core Anglian Water module."""
 
+import json
+
 import calendar
 from datetime import date, timedelta, datetime
 
+import requests
+import fiscalyear
+
 from .api import API
-from .const import ANGLIAN_WATER_AREAS
+from .const import AW_TARIFF_URL
 from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError, ExpiredAccessTokenError
 
@@ -20,9 +25,17 @@ def days(s: date, e: date):
         e = e.date()
     return (e-s).days
 
+ANGLIAN_WATER_AREAS = {}
+def load_aw_areas():
+    """Helper function to load the AW area cache."""
+    global ANGLIAN_WATER_AREAS
+    ANGLIAN_WATER_AREAS = json.loads(requests.get(
+            url=AW_TARIFF_URL,
+            timeout=15).text
+    )
+
 class AnglianWater:
     """Anglian Water"""
-
     api: API = None
     current_usage: float = None
     current_cost: float = None
@@ -32,8 +45,39 @@ class AnglianWater:
     next_bill_date: date = None
     current_tariff: str = None
     current_tariff_area: str = None
-    current_tariff_rate: float = None
-    current_tariff_service: float = None
+    _custom_rate: float = None
+    _custom_service: float = None
+
+    @property
+    def current_tariff_rate(self):
+        """Get the current tariff rate."""
+        if self._custom_rate:
+            return self._custom_rate
+        return self.get_tariff_config(date.today()).get("rate", 0.0)
+
+    @property
+    def current_tariff_service(self):
+        """Get the current tariff standing charge."""
+        if self._custom_service:
+            return self._custom_service
+        return self.get_tariff_config(date.today()).get("service", 0.0)
+
+    def get_tariff_config(self, dt: datetime | date) -> dict:
+        """Get the tariff rate for a given year."""
+        with fiscalyear.fiscal_calendar("same", start_month=4, start_day=1):
+            f = fiscalyear.FiscalDate(
+                year=dt.year,
+                month=dt.month,
+                day=dt.day
+            )
+        charges_year = f"{str(int(f.fiscal_year)-1)}-{str(f.fiscal_year)[2:]}"
+        return ANGLIAN_WATER_AREAS.get(
+            self.current_tariff_area, {}
+        ).get(
+            charges_year, {}
+        ).get(
+            self.current_tariff, {}
+        )
 
     def parse_usages(self, _response, start, end):
         """Parse given usage details."""
@@ -73,7 +117,7 @@ class AnglianWater:
                         "OccupierCount": 0,
                         "PrimaryBPNumber": self.api.primary_bp_number,
                         "ReadGranularity": str(UsagesReadGranularity.HOURLY),
-                        "SelectedEndDate": end.strftime("%d/%m/%Y"),
+                        "Selected{}EndDate": end.strftime("%d/%m/%Y"),
                         "SelectedStartDate": start.strftime("%d/%m/%Y")
                     })
                 break
@@ -113,8 +157,6 @@ class AnglianWater:
                 self.current_tariff = "Standard"
                 if self.current_tariff_area is None:
                     self.current_tariff_area = "Anglian"
-                self.current_tariff_rate = ANGLIAN_WATER_AREAS[
-                    self.current_tariff_area]["Standard"]["rate"]
             if bills["NextBillDate"] is not None:
                 self.next_bill_date = bills["NextBillDate"]
 
@@ -137,6 +179,7 @@ class AnglianWater:
         """Create a new instance of Anglian Water from the API."""
         self = cls()
         self.api = api
+        load_aw_areas()
         if area is not None and area not in ANGLIAN_WATER_AREAS:
             raise TariffNotAvailableError("The provided tariff does not exist.")
         if area is not None:
@@ -145,11 +188,8 @@ class AnglianWater:
             if tariff not in ANGLIAN_WATER_AREAS[area]:
                 raise TariffNotAvailableError("The provided tariff does not exist.")
             self.current_tariff = tariff
-            if ANGLIAN_WATER_AREAS[area][tariff].get("custom", False):
-                self.current_tariff_rate = custom_rate
-                self.current_tariff_service = custom_service
-            else:
-                self.current_tariff_rate = ANGLIAN_WATER_AREAS[area][tariff]["rate"]
-                self.current_tariff_service = ANGLIAN_WATER_AREAS[area][tariff]["service"]
+            if self.get_tariff_config(date.today()).get("custom", False):
+                self._custom_rate = custom_rate
+                self._custom_rate = custom_service
         await self.update()
         return self

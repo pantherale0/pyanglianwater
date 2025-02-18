@@ -152,7 +152,8 @@ class API:
         endpoint_map = API_ENDPOINTS[endpoint]
         headers = {
             "ApplicationKey": API_APP_KEY,
-            "Partnerkey": self.generate_partner_key()
+            "Partnerkey": self.generate_partner_key(),
+            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 11; SM-N9005 Build/RQ3A.211001.001)"
         }
         if self.access_token is not None:
             headers["Authorization"] = self.access_token
@@ -187,6 +188,7 @@ class API:
                                   endpoint,
                                   _response.status,
                                   await _response.text())
+                    raise ServiceUnavailableError()
                 # Check StatusCode in response body.
                 if _response.content_type != "application/json":
                     raise UnknownEndpointError(await _response.text())
