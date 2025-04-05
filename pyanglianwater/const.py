@@ -70,7 +70,7 @@ AUTH_MSO_STEP_1_URL = (
     f"&code_challenge_method={AUTH_MSO_CODE_CHALLENGE_METHOD}"
     f"&device_type={AUTH_MSO_DEVICE_TYPE}&platform={AUTH_MSO_PLATFORM}"
     f"&application_version={AUTH_MSO_APP_VERSION}&ui_locales=en"
-    f"&scope={" ".join(AUTH_MSO_SCOPES)}"
+    f"&scope={' '.join(AUTH_MSO_SCOPES)}"
     "&login_hint={EMAIL}"
 )
 AUTH_MSO_SELF_ASSERTED_URL = (
