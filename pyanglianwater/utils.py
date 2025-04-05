@@ -40,7 +40,7 @@ def build_code_challenge(code_verify: str) -> str:
 
 def hash_data(data: str) -> str:
     """
-    Hashes the inpdataut string using SHA-256 and encodes the result in Base64.
+    Hashes the input data string using SHA-256 and encodes the result in Base64.
 
     Args:
         data: The string to hash.
