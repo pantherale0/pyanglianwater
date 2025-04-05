@@ -19,7 +19,8 @@ async def main():
         try:
             authenticator = MSOB2CAuth(
                 username=os.environ.get("AW_USERNAME") or input("Email: "),
-                password=os.environ.get("AW_PASSWORD") or input("Password: ")
+                password=os.environ.get("AW_PASSWORD") or input("Password: "),
+                account_id=os.environ.get("AW_ACCOUNT_ID") or input("Account ID: ")
             )
             await authenticator.send_login_request()
             _LOGGER.debug("Logged in. Ready..")
@@ -27,7 +28,7 @@ async def main():
         except Exception as exc:
             _LOGGER.error(exc)
 
-    water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian")
+    water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian", tariff="Standard")
     _LOGGER.debug(">> Got AnglianWater data %s", water.__dict__)
 
     while True:

@@ -37,15 +37,15 @@ AW_APP_ENDPOINTS = {
     },
     "get_account": {
         "method": "GET",
-        "endpoint": "/myaccount/v1/accounts/{OP_ID}"
+        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}"
     },
     "get_usage_details": {
         "method": "GET",
-        "endpoint": "/myaccount/v1/accounts/{OP_ID}/usage/smartmeter/frequency/10"
+        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/usage/smartmeter/frequency/10"
     },
     "get_account_summary": {
         "method": "GET",
-        "endpoint": "/myaccount/v1/accounts/{OP_ID}/billing/summary"
+        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/billing/summary"
     }
 }
 AUTH_AW_BASE = "https://login.myaccount.anglianwater.co.uk"

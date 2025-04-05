@@ -48,7 +48,7 @@ class BaseAuth:
     next_refresh: datetime = None
     device_id: str = None
 
-    def __init__(self, username, password, session=None, device_id=None):
+    def __init__(self, username, password, session=None, device_id=None, account_id=None):
         if session:
             self._auth_session = session
         else:
@@ -56,10 +56,11 @@ class BaseAuth:
         self.username = username
         self._password = password
         self.device_id = device_id
+        self.account_number = account_id
 
     async def send_refresh_request(self):
         """Send a authenticated refresh request."""
-        if self.access_token is not None:
+        if self.access_token is None:
             raise ValueError("Not logged in.")
         if self.next_refresh > datetime.now():
             return
@@ -250,6 +251,16 @@ class MSOB2CAuth(BaseAuth):
         """Return the access token."""
         return self.auth_data.get("refresh_token")
 
+    @property
+    def get_authenticated_headers(self) -> dict:
+        """Return authenticated headers."""
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Ocp-Apim-Subscription-Key": "adbc43b29a87404cbc297fe6d7a3d10e",
+            "Accept": "application/json",
+            "User-Agent": AW_APP_USER_AGENT
+        }
+
     async def _get_initial_auth_data(self):
         """Retrieves initial authentication data (CSRF token, transId)."""
         self._state = secrets.token_urlsafe(32)
@@ -402,19 +413,25 @@ class MSOB2CAuth(BaseAuth):
         if endpoint not in AW_APP_ENDPOINTS:
             raise ValueError("Provided API Endpoint does not exist.")
 
+
+        _LOGGER.debug("Sending request to %s", endpoint)
         endpoint_map = AW_APP_ENDPOINTS[endpoint]
-        headers = {}
-        if self.access_token is not None:
-            headers["Authorization"] = f"Bearer {self.access_token}"
+        headers = self.get_authenticated_headers
         await self.send_refresh_request()
         if self.access_token is None:
+            _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
 
         async with aiohttp.ClientSession() as _session:
             async with _session.request(
                 method=endpoint_map["method"],
-                url=AW_APP_BASEURL + endpoint_map["endpoint"],
+                url=AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number),
                 headers=headers,
                 json=body
             ) as _response:
-                pass
+                _LOGGER.debug("Request to %s returned with status %s", endpoint, _response.status)
+                if _response.ok and _response.content_type == "application/json":
+                    return await _response.json()
+                if _response.status == 401 or _response.status == 403:
+                    raise ExpiredAccessTokenError()
+                raise UnknownEndpointError(_response.status, await _response.text())
