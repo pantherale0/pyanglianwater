@@ -54,4 +54,5 @@ setuptools.setup(
         'dev': DEV_REQUIREMENTS,
     },
     python_requires='>=3.10, <4',
+    packages=["pyanglianwater"],
 )
