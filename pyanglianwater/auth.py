@@ -269,6 +269,7 @@ class MSOB2CAuth(BaseAuth):
 
     async def _get_initial_auth_data(self):
         """Retrieves initial authentication data (CSRF token, transId)."""
+        _LOGGER.debug("B2C Auth: Getting initial auth data")
         self._state = secrets.token_urlsafe(32)
         self._pkce_challenge = build_code_challenge(self._pkce_verifier)
         auth_response = await self._auth_session.get(
@@ -308,6 +309,7 @@ class MSOB2CAuth(BaseAuth):
 
     async def _submit_self_asserted_form(self, trans_id):
         """Submits the SelfAsserted form."""
+        _LOGGER.debug("B2C Auth: Submitting self-asserted form")
         data = {
             "request_type":"RESPONSE",
             "email": self.username,
@@ -339,6 +341,7 @@ class MSOB2CAuth(BaseAuth):
 
     async def _get_confirmation_redirect(self):
         """Gets the confirmation redirect URL."""
+        _LOGGER.debug("B2C Auth: Getting confirmation redirect URL")
         confirm_login_response = await self._auth_session.get(
             AUTH_MSO_CONFIRM_URL.format(CSRF=self._csrf_token, STATE=self._state),
             allow_redirects=False
@@ -359,6 +362,7 @@ class MSOB2CAuth(BaseAuth):
 
     async def _get_token(self, code):
         """Requests the access token."""
+        _LOGGER.debug("B2C Auth: Getting access token from authorization code")
         token_request_response = await self._auth_session.post(
             AUTH_MSO_GET_TOKEN_URL,
             data=urllib.parse.urlencode(
@@ -391,10 +395,12 @@ class MSOB2CAuth(BaseAuth):
 
     async def send_refresh_request(self):
         """Send a request to refresh the access token."""
+        _LOGGER.debug("B2C Auth: Refreshing access token")
         if self.access_token is None and self.refresh_token is None:
             raise ValueError("Not logged in.")
         if self.next_refresh is not None:
             if self.next_refresh > datetime.now():
+                _LOGGER.debug("B2C Auth: Access token not yet expired")
                 return
         token_request_response = await self._auth_session.post(
             AUTH_MSO_GET_TOKEN_URL,
@@ -421,18 +427,21 @@ class MSOB2CAuth(BaseAuth):
             token_data = await token_request_response.json()
             self.auth_data = token_data
             self.next_refresh = datetime.now()+timedelta(seconds=token_data["expires_in"])
+            _LOGGER.debug("B2C Auth: Access token refreshed successfully, new expiration time: %s",
+                          self.next_refresh)
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
             _LOGGER.error("B2C Auth: Error processing refresh response: %s", e)
 
     async def send_login_request(self):
         """Send a request to MSO for Auth."""
         if self._refresh_token is not None:
+            _LOGGER.debug("B2C Auth: Using refresh token for authentication")
             # Attempt to use refresh token first
             try:
                 await self.send_refresh_request()
                 return
-            except Exception:
-                _LOGGER.debug("B2C Auth: Refresh token failed, falling back to initial login.")
+            except Exception as e:
+                _LOGGER.warning("B2C Auth: Refresh token failed, falling back to initial login: %s", e)
         auth_data = await self._get_initial_auth_data()
         if auth_data is None:
             return
@@ -451,11 +460,13 @@ class MSOB2CAuth(BaseAuth):
 
         token_response = await self._get_token(code)
         if token_response is None:
+            _LOGGER.error("B2C Auth: Token request failed")
             return
 
         self.auth_data = token_response
         self.next_refresh = datetime.now()+timedelta(seconds=token_response["expires_in"])
         self._refresh_token = token_response.get("refresh_token")
+        _LOGGER.debug("B2C Auth: Access token obtained successfully, new expiration time: %s", self.next_refresh)
 
     async def send_request(self, endpoint: str, body: dict) -> dict:
         """Send a request to the API, and return the JSON response."""
