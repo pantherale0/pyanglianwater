@@ -476,12 +476,11 @@ class MSOB2CAuth(BaseAuth):
 
         _LOGGER.debug("Sending request to %s", endpoint)
         endpoint_map = AW_APP_ENDPOINTS[endpoint]
-        headers = self.get_authenticated_headers
         await self.send_refresh_request()
         if self.access_token is None:
             _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
-
+        headers = self.get_authenticated_headers
         built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number)
         async with aiohttp.ClientSession() as _session:
             async with _session.request(
