@@ -32,14 +32,13 @@ async def main():
 
     water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian", tariff="Standard")
     await water.update()
-    _LOGGER.debug(">> Got AnglianWater data %s", dict(water))
 
     while True:
         for m in water.meters.values():
             _LOGGER.debug(">> Meter %s", m.serial_number)
             _LOGGER.debug(">> Last reading %s", m.last_reading)
-            _LOGGER.debug(">> Yesterday readings %s", m.get_yesterday_readings)
             _LOGGER.debug(">> Yesterday cost %s", m.get_yesterday_cost)
+            _LOGGER.debug(">> Latest consumption %s", m.latest_consumption)
         await asyncio.sleep(30)
 
 if __name__ == "__main__":

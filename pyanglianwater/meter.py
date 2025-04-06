@@ -53,13 +53,21 @@ class SmartMeter:
             previous_read = float(reading["read"])
         return total
 
+    @property
+    def latest_consumption(self) -> float:
+        """Returns the latest consumption for the smart meter."""
+        if len(self.readings) == 0:
+            return 0.0
+        return float(self.readings[-1]["consumption"])
+
     def to_dict(self) -> dict:
         """Returns the SmartMeter object data as a dictionary."""
         return {
             "serial_number": self.serial_number,
             "last_reading": self.last_reading,
             "readings": self.readings,
-            "tariff_rate": self.tariff_rate
+            "tariff_rate": self.tariff_rate,
+            "consumption": self.latest_consumption,
         }
 
     def __iter__(self):
