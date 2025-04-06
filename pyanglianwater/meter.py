@@ -1,4 +1,4 @@
-""""""
+"""Represent a smart water meter."""
 
 from datetime import datetime, timedelta
 
