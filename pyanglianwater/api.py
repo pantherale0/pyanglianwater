@@ -27,9 +27,9 @@ class API:
         """Get username from auth."""
         return self._auth.username
 
-    async def send_request(self, endpoint: str, body: dict):
+    async def send_request(self, endpoint: str, body: dict, **kwargs):
         """Send a request to the API using the authentication handler."""
-        return await self._auth.send_request(endpoint=endpoint, body=body)
+        return await self._auth.send_request(endpoint=endpoint, body=body, **kwargs)
 
     async def token_refresh(self):
         """Force token refresh."""

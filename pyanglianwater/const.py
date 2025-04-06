@@ -41,7 +41,7 @@ AW_APP_ENDPOINTS = {
     },
     "get_usage_details": {
         "method": "GET",
-        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/usage/smartmeter/frequency/10"
+        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/usage/smartmeter/frequency/{GRANULARITY}"
     },
     "get_account_summary": {
         "method": "GET",

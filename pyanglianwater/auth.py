@@ -73,7 +73,7 @@ class BaseAuth:
         if self.access_token is not None:
             raise ValueError("Already logged in. Use refresh instead.")
 
-    async def send_request(self, endpoint: str, body: dict):
+    async def send_request(self, endpoint: str, body: dict, **kwargs):
         """Send a request to an API."""
         raise NotImplementedError("Function not available.")
 
@@ -118,7 +118,7 @@ class LegacyAuth(BaseAuth):
         else:
             self.next_refresh += timedelta(minutes=15)
 
-    async def send_request(self, endpoint: str, body: dict) -> dict:
+    async def send_request(self, endpoint: str, body: dict, **kwargs) -> dict:
         """Send a request to the API, and return the JSON response."""
         if endpoint not in LEGACY_API_ENDPOINTS:
             raise ValueError("Provided API Endpoint does not exist.")
@@ -468,7 +468,7 @@ class MSOB2CAuth(BaseAuth):
         self._refresh_token = token_response.get("refresh_token")
         _LOGGER.debug("B2C Auth: Access token obtained successfully, new expiration time: %s", self.next_refresh)
 
-    async def send_request(self, endpoint: str, body: dict) -> dict:
+    async def send_request(self, endpoint: str, body: dict, **kwargs) -> dict:
         """Send a request to the API, and return the JSON response."""
         if endpoint not in AW_APP_ENDPOINTS:
             raise ValueError("Provided API Endpoint does not exist.")
@@ -481,7 +481,7 @@ class MSOB2CAuth(BaseAuth):
             _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
         headers = self.get_authenticated_headers
-        built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number)
+        built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number, **kwargs)
         async with aiohttp.ClientSession() as _session:
             async with _session.request(
                 method=endpoint_map["method"],

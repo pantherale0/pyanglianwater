@@ -5,6 +5,7 @@ from typing import Callable
 from .api import API
 from .auth import BaseAuth
 from .const import ANGLIAN_WATER_AREAS
+from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError
 from .meter import SmartMeter
 
@@ -23,7 +24,7 @@ class AnglianWater:
         """Init AnglianWater."""
         self.api = api
 
-    def parse_usages(self, _response):
+    def parse_usages(self, _response, update_cache: bool = True) -> dict:
         """Parse given usage details."""
         if "result" in _response:
             _response = _response["result"]
@@ -40,17 +41,23 @@ class AnglianWater:
                     serial_number=serial_number,
                     tariff_rate=self.current_tariff_rate
                 )
-            self.meters[serial_number].update_reading_cache(_response)
+            if update_cache:
+                self.meters[serial_number].update_reading_cache(_response)
         for callback in self.updated_data_callbacks:
             callback()
+        return _response
 
-    async def get_usages(self) -> dict:
+    async def get_usages(
+            self,
+            interval: UsagesReadGranularity = UsagesReadGranularity.HOURLY,
+            update_cache: bool = True
+        ) -> dict:
         """Calculates the usage using the provided date range."""
         while True:
             _response = await self.api.send_request(
-                endpoint="get_usage_details", body=None)
+                endpoint="get_usage_details", body=None, GRANULARITY=str(interval))
             break
-        return self.parse_usages(_response)
+        return self.parse_usages(_response, update_cache)
 
     async def update(self):
         """Update cached data."""
