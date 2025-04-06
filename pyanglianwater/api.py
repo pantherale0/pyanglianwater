@@ -38,3 +38,15 @@ class API:
     async def login(self):
         """Login to the API."""
         return await self._auth.send_login_request()
+
+    def to_dict(self) -> dict:
+        """Returns the API object data as a dictionary."""
+        return {
+            "account_number": self.account_number,
+            "username": self.username,
+            "next_refresh": self._auth.next_refresh
+        }
+
+    def __iter__(self):
+        """Allows the object to be converted to a dictionary using dict()."""
+        return iter(self.to_dict().items())
