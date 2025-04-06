@@ -31,7 +31,8 @@ from .exceptions import (
     API_RESPONSE_STATUS_CODE_MAPPING,
     ExpiredAccessTokenError,
     UnknownEndpointError,
-    ServiceUnavailableError
+    ServiceUnavailableError,
+    InvalidAccountIdError
 )
 from .utils import random_string, build_code_challenge, decode_oauth_redirect
 
@@ -48,13 +49,14 @@ class BaseAuth:
     next_refresh: datetime = None
     device_id: str = None
 
-    def __init__(self, username, password, session=None, device_id=None, account_id=None):
+    def __init__(self, username, password, session=None, device_id=None, account_id=None, refresh_token=None):
         if session:
             self._auth_session = session
         else:
             self._auth_session = aiohttp.ClientSession()
         self.username = username
         self._password = password
+        self._refresh_token = refresh_token
         self.device_id = device_id
         self.account_number = account_id
 
@@ -244,11 +246,15 @@ class MSOB2CAuth(BaseAuth):
     @property
     def access_token(self) -> str:
         """Return the access token."""
+        if self.auth_data is None:
+            return None
         return self.auth_data.get("access_token")
 
     @property
     def refresh_token(self) -> str:
         """Return the access token."""
+        if self._refresh_token is not None:
+            return self._refresh_token
         return self.auth_data.get("refresh_token")
 
     @property
@@ -383,8 +389,50 @@ class MSOB2CAuth(BaseAuth):
             _LOGGER.error("B2C Auth: Error processing token response: %s", e)
             return None
 
+    async def send_refresh_request(self):
+        """Send a request to refresh the access token."""
+        if self.access_token is None and self.refresh_token is None:
+            raise ValueError("Not logged in.")
+        if self.next_refresh is not None:
+            if self.next_refresh > datetime.now():
+                return
+        token_request_response = await self._auth_session.post(
+            AUTH_MSO_GET_TOKEN_URL,
+            data=urllib.parse.urlencode(
+                {
+                    "grant_type": "refresh_token",
+                    "client_id": AUTH_MSO_CLIENT_ID,
+                    "refresh_token": self.refresh_token,
+                }
+            ),
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                "User-Agent": AW_APP_USER_AGENT,
+            },
+        )
+
+        if token_request_response.status != 200:
+            text = await token_request_response.text()
+            _LOGGER.error("B2C Auth: Refresh token request failed %s: %s",
+                          token_request_response.status, text)
+            return None
+
+        try:
+            token_data = await token_request_response.json()
+            self.auth_data = token_data
+            self.next_refresh = datetime.now()+timedelta(seconds=token_data["expires_in"])
+        except (aiohttp.ClientError, json.JSONDecodeError) as e:
+            _LOGGER.error("B2C Auth: Error processing refresh response: %s", e)
+
     async def send_login_request(self):
         """Send a request to MSO for Auth."""
+        if self._refresh_token is not None:
+            # Attempt to use refresh token first
+            try:
+                await self.send_refresh_request()
+                return
+            except Exception:
+                _LOGGER.debug("B2C Auth: Refresh token failed, falling back to initial login.")
         auth_data = await self._get_initial_auth_data()
         if auth_data is None:
             return
@@ -407,6 +455,7 @@ class MSOB2CAuth(BaseAuth):
 
         self.auth_data = token_response
         self.next_refresh = datetime.now()+timedelta(seconds=token_response["expires_in"])
+        self._refresh_token = token_response.get("refresh_token")
 
     async def send_request(self, endpoint: str, body: dict) -> dict:
         """Send a request to the API, and return the JSON response."""
@@ -422,16 +471,19 @@ class MSOB2CAuth(BaseAuth):
             _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
 
+        built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number)
         async with aiohttp.ClientSession() as _session:
             async with _session.request(
                 method=endpoint_map["method"],
-                url=AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.account_number),
+                url=built_url,
                 headers=headers,
                 json=body
             ) as _response:
-                _LOGGER.debug("Request to %s returned with status %s", endpoint, _response.status)
+                _LOGGER.debug("Request to %s returned with status %s", built_url, _response.status)
                 if _response.ok and _response.content_type == "application/json":
                     return await _response.json()
-                if _response.status == 401 or _response.status == 403:
+                if _response.status == 401:
                     raise ExpiredAccessTokenError()
+                if _response.status == 403:
+                    raise InvalidAccountIdError()
                 raise UnknownEndpointError(_response.status, await _response.text())

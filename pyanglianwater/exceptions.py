@@ -36,6 +36,9 @@ class ConfirmationRedirectError(AuthError):
 class TokenRequestError(AuthError):
     """Error requesting a token from the token server."""
 
+class InvalidAccountIdError(AuthError):
+    """403 Invalid account ID."""
+
 API_RESPONSE_STATUS_CODE_MAPPING = {
     "E_LGN_006": InvalidPasswordError,
     "E_LGN_008": InvalidUsernameError,
