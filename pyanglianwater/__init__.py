@@ -1,7 +1,5 @@
 """The core Anglian Water module."""
 
-import calendar
-from datetime import date, datetime
 from typing import Callable
 
 from .api import API
@@ -9,18 +7,6 @@ from .auth import BaseAuth
 from .const import ANGLIAN_WATER_AREAS
 from .exceptions import TariffNotAvailableError
 from .meter import SmartMeter
-
-def days_in_year(year):
-    """Return number of days in a year."""
-    return 365 + calendar.isleap(year)
-
-def days(s: date, e: date):
-    """Get number of days between two dates."""
-    if isinstance(s, datetime):
-        s = s.date()
-    if isinstance(e, datetime):
-        e = e.date()
-    return (e-s).days
 
 class AnglianWater:
     """Anglian Water"""
