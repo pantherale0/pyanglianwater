@@ -54,6 +54,14 @@ class SmartMeter:
         return total
 
     @property
+    def get_yesterday_consumption(self) -> float:
+        """Returns the consumption of the previous days readings for the smart meter."""
+        total = 0.0
+        for reading in self.get_yesterday_readings:
+            total += float(reading["consumption"])
+        return total
+
+    @property
     def latest_consumption(self) -> float:
         """Returns the latest consumption for the smart meter."""
         if len(self.readings) == 0:
