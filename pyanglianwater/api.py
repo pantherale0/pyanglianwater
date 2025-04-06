@@ -30,3 +30,11 @@ class API:
     async def send_request(self, endpoint: str, body: dict):
         """Send a request to the API using the authentication handler."""
         return await self._auth.send_request(endpoint=endpoint, body=body)
+
+    async def token_refresh(self):
+        """Force token refresh."""
+        return await self._auth.send_refresh_request()
+
+    async def login(self):
+        """Login to the API."""
+        return await self._auth.send_login_request()
