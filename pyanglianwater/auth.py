@@ -19,22 +19,21 @@ from .const import (
     AUTH_MSO_CLIENT_ID,
     AUTH_MSO_REDIR_URI,
     AW_APP_USER_AGENT,
-    API_LEGACY_PARTNER_KEY,
-    API_LEGACY_APP_KEY,
-    AUTH_LEGACY_URL,
-    LEGACY_API_ENDPOINTS,
-    LEGACY_API_BASEURL,
     AW_APP_ENDPOINTS,
     AW_APP_BASEURL
 )
 from .exceptions import (
-    API_RESPONSE_STATUS_CODE_MAPPING,
     ExpiredAccessTokenError,
     UnknownEndpointError,
-    ServiceUnavailableError,
     InvalidAccountIdError
 )
-from .utils import random_string, build_code_challenge, decode_oauth_redirect
+from .utils import (
+    random_string,
+    build_code_challenge,
+    decode_oauth_redirect,
+    encrypt_string_to_charcode_hex,
+    decode_jwt
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,11 +44,9 @@ class BaseAuth:
     username: str = None
     _password: str = None
     account_number: str = None
-    primary_bp_number: str = None
     next_refresh: datetime = None
-    device_id: str = None
 
-    def __init__(self, username, password, session=None, device_id=None, account_id=None, refresh_token=None):
+    def __init__(self, username, password, session=None, refresh_token=None):
         if session:
             self._auth_session = session
         else:
@@ -57,8 +54,6 @@ class BaseAuth:
         self.username = username
         self._password = password
         self._refresh_token = refresh_token
-        self.device_id = device_id
-        self.account_number = account_id
 
     async def send_refresh_request(self):
         """Send a authenticated refresh request."""
@@ -77,163 +72,6 @@ class BaseAuth:
         """Send a request to an API."""
         raise NotImplementedError("Function not available.")
 
-class LegacyAuth(BaseAuth):
-    """Legacy mobile authentication handler."""
-    _new_device = True
-
-    def __init__(self, username, password, session=None, device_id=None):
-        super().__init__(username, password, session, device_id)
-        if device_id is not None:
-            self._new_device = False
-        else:
-            self.device_id = secrets.token_hex(8)
-            _LOGGER.debug(
-                ">> Generated device ID %s. Keep this safe to login to this session in the future.",
-            self.device_id)
-
-    def generate_partner_key(self):
-        """Generate a partner key for authentication."""
-        if self.access_token is None:
-            return API_LEGACY_PARTNER_KEY.format(
-                EMAIL="undefined",
-                ACC_NO="undefined",
-                DEV_ID=self.device_id,
-                APP_KEY=API_LEGACY_APP_KEY
-            )
-        return API_LEGACY_PARTNER_KEY.format(
-                EMAIL=self.username,
-                ACC_NO=self.account_number,
-                DEV_ID=self.device_id,
-                APP_KEY=API_LEGACY_APP_KEY
-            )
-
-    def parse_login_response(self, response):
-        """Parse a login request response."""
-        self.access_token = response["Data"][0]["AuthToken"]
-        self.primary_bp_number = response["Data"][0]["ActualBPNumber"]
-        self.account_number = response["Data"][0]["ActualAccountNo"]
-        # set a low refresh interval to ensure we reload properly
-        if self.next_refresh is None:
-            self.next_refresh = datetime.now()+timedelta(minutes=15)
-        else:
-            self.next_refresh += timedelta(minutes=15)
-
-    async def send_request(self, endpoint: str, body: dict, **kwargs) -> dict:
-        """Send a request to the API, and return the JSON response."""
-        if endpoint not in LEGACY_API_ENDPOINTS:
-            raise ValueError("Provided API Endpoint does not exist.")
-
-        endpoint_map = LEGACY_API_ENDPOINTS[endpoint]
-        headers = {
-            "ApplicationKey": API_LEGACY_APP_KEY,
-            "Partnerkey": self.generate_partner_key()
-        }
-        if self.access_token is not None:
-            headers["Authorization"] = self.access_token
-        await self.send_refresh_request()
-        if self.access_token is None:
-            raise ExpiredAccessTokenError()
-
-        async with aiohttp.ClientSession() as _session:
-            async with _session.request(
-                method=endpoint_map["method"],
-                url=LEGACY_API_BASEURL + endpoint_map["endpoint"],
-                headers=headers,
-                json=body
-            ) as _response:
-                if not _response.ok:
-                    if _response.status == 401:
-                        # refresh access token
-                        await self.send_refresh_request()
-                        # retry sending request
-                        return await self.send_request(endpoint, body)
-                    if _response.status == 503:
-                        self.access_token = None
-                        raise ServiceUnavailableError()
-                    _LOGGER.error(">> Error sending request %s to Anglian Water (%s) - %s",
-                                  endpoint,
-                                  _response.status,
-                                  await _response.text())
-                # Check StatusCode in response body.
-                if _response.content_type != "application/json":
-                    raise UnknownEndpointError(await _response.text())
-                resp_body = await _response.json()
-                if resp_body["StatusCode"] == "0":
-                    # Successful request
-                    _LOGGER.debug(">> Request to %s successful.", endpoint)
-                    return resp_body
-                if resp_body["StatusCode"] in API_RESPONSE_STATUS_CODE_MAPPING:
-                    raise API_RESPONSE_STATUS_CODE_MAPPING[resp_body["StatusCode"]]
-                raise UnknownEndpointError(resp_body)
-
-    async def send_new_registration_queries(self):
-        """Send new device registration queries."""
-        _LOGGER.debug(
-            ">> Some initial queries need to be sent as this is a new device ID.")
-        await self.send_request(
-            endpoint="register_device",
-            body={
-                "DeviceId": self.device_id,
-                "DeviceOs": "Android",
-                "EmailId": self.username,
-                "EnableNotif": True,
-                "LanguageSetup": "en",
-                "Partner": self.primary_bp_number,
-                "PartternSetup": False,
-                "PreviousEmailId": "",
-                "Regikey": "",
-                "Vkont": str(self.account_number)
-            }
-        )
-        await self.send_request(
-            endpoint="register_device",
-            body={
-                "DeviceId": self.device_id,
-                "DeviceOs": "Android",
-                "EmailId": self.username,
-                "EnableNotif": True,
-                "LanguageSetup": "en",
-                "Partner": self.primary_bp_number,
-                "PartternSetup": True,
-                "PreviousEmailId": "",
-                "Regikey": "",
-                "Vkont": str(self.account_number)
-            }
-        )
-        await self.send_request(
-            endpoint="get_dashboard_details",
-            body={
-                "ActualAccountNumber": self.account_number,
-                "EmailAddress": self.username,
-                "LanguageId": 1
-            }
-        )
-        await self.send_request(
-            endpoint="get_bills_payments",
-            body={
-                "ActualAccountNo": self.account_number,
-                "EmailAddress": self.username,
-                "PrimaryBPNumber": self.primary_bp_number,
-                "SelectedEndDate": datetime.now().strftime("%d/%m/%Y"),
-                "SelectedStartDate": (
-                    datetime.now() - timedelta(days=1825)).strftime("%d/%m/%Y")
-            }
-        )
-
-    async def send_login_request(self):
-        """Send a login request to the legacy endpoints."""
-        resp = await self._auth_session.request(
-            "POST",
-            url=AUTH_LEGACY_URL,
-            json={
-                "DeviceId": self.device_id,
-                "Password": self._password,
-                "RememberMe": True,
-                "UserName": self.username
-            }
-        )
-        self.parse_login_response(resp)
-
 class MSOB2CAuth(BaseAuth):
     """Represent an instance of MSO Auth."""
     _pkce_verifier = random_string(43,128)
@@ -241,7 +79,15 @@ class MSOB2CAuth(BaseAuth):
     _state = secrets.token_urlsafe(32)
     _csrf_token: str = ""
     _cookie_cache: dict = {}
+    _decoded_access_token: dict = {}
     auth_data: dict = None
+
+    @property
+    def account_number(self) -> str:
+        """Return the account id."""
+        return encrypt_string_to_charcode_hex(
+            self._decoded_access_token.get("extension_accountNumber", "")
+        )
 
     @property
     def access_token(self) -> str:
@@ -427,6 +273,7 @@ class MSOB2CAuth(BaseAuth):
             token_data = await token_request_response.json()
             self.auth_data = token_data
             self.next_refresh = datetime.now()+timedelta(seconds=token_data["expires_in"])
+            self._decoded_access_token = decode_jwt(self.access_token)
             _LOGGER.debug("B2C Auth: Access token refreshed successfully, new expiration time: %s",
                           self.next_refresh)
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
@@ -466,6 +313,7 @@ class MSOB2CAuth(BaseAuth):
         self.auth_data = token_response
         self.next_refresh = datetime.now()+timedelta(seconds=token_response["expires_in"])
         self._refresh_token = token_response.get("refresh_token")
+        self._decoded_access_token = decode_jwt(self.access_token)
         _LOGGER.debug("B2C Auth: Access token obtained successfully, new expiration time: %s", self.next_refresh)
 
     async def send_request(self, endpoint: str, body: dict, **kwargs) -> dict:

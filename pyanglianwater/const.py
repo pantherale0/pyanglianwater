@@ -1,30 +1,5 @@
 """Anglian Water consts."""
 
-LEGACY_API_BASEURL = "https://my.anglianwater.co.uk/mobile/api"
-AUTH_LEGACY_URL = f"{LEGACY_API_BASEURL}/Login"
-LEGACY_API_ENDPOINTS = {
-    "register_device": {
-        "method": "POST",
-        "endpoint": "/UpdateProfileSetupSAP"
-    },
-    "get_dashboard_details": {
-        "method": "POST",
-        "endpoint": "/GetDashboardDetails"
-    },
-    "get_bills_payments": {
-        "method": "POST",
-        "endpoint": "/GetBillsAndPayments"
-    },
-    "get_usage_details": {
-        "method": "POST",
-        "endpoint": "/GetMyUsagesDetailsFromAWBI"
-    }
-}
-
-
-API_LEGACY_APP_KEY = "2.7$1.9.4$Android$samsung$SM-N9005$11"
-API_LEGACY_PARTNER_KEY = "Mobile${EMAIL}${ACC_NO}${DEV_ID}${APP_KEY}"
-
 AW_APP_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 4 XL Build/UQ1A.240205.004; wv) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -87,6 +62,13 @@ AUTH_MSO_OAUTH_SERVICE = (
 )
 AUTH_MSO_GET_TOKEN_URL = f"{AUTH_MSO_OAUTH_SERVICE}/token"
 AUTH_MSO_REFRESH_TOKEN_URL = f"{AUTH_MSO_OAUTH_SERVICE}/refresh"
+
+AW_ENCRYPTION_KEY = "d8ssmJ1c$qZq441%nC^u0!P!w96K@RdF"
+AW_ENCRYPTION_SALT_SIZE = 16 # 128 bits
+AW_ENCRYPTION_IV_SIZE = 16 # 128 bits
+AW_ENCRYPTION_KEY_SIZE = 32 # 256 bits
+AW_ENCRYPTION_ITERATIONS = 100
+AW_ENCRYPTION_PBKDF2_HASH = "sha1"
 
 ANGLIAN_WATER_AREAS = {
     "Anglian": {

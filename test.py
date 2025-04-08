@@ -20,12 +20,12 @@ async def main():
             authenticator = MSOB2CAuth(
                 username=os.environ.get("AW_USERNAME") or input("Email: "),
                 password=os.environ.get("AW_PASSWORD") or input("Password: "),
-                account_id=os.environ.get("AW_ACCOUNT_ID") or input("Account ID: "),
                 refresh_token=os.environ.get("AW_REFRESH_TOKEN", None),
             )
             await authenticator.send_login_request()
             _LOGGER.debug("Logged in. Ready..")
             _LOGGER.debug("Refresh token: %s", authenticator.refresh_token)
+            _LOGGER.debug("Access token: %s", authenticator.access_token)
             login = False
         except Exception as exc:
             _LOGGER.error(exc)
