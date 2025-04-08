@@ -16,6 +16,7 @@ with open('pyanglianwater/_version.py', 'r', encoding='utf8') as version_file:
 REQUIREMENTS = [
     # Add your list of production dependencies here, eg:
     # 'requests == 2.*',
+    'pyjwt >= 2.6,< 3',
 ]
 
 DEV_REQUIREMENTS = [
