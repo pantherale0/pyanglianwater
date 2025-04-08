@@ -8,6 +8,7 @@ from .const import ANGLIAN_WATER_AREAS
 from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError
 from .meter import SmartMeter
+from .utils import is_awaitable
 
 class AnglianWater:
     """Anglian Water"""
@@ -24,7 +25,7 @@ class AnglianWater:
         """Init AnglianWater."""
         self.api = api
 
-    def parse_usages(self, _response, update_cache: bool = True) -> dict:
+    async def parse_usages(self, _response, update_cache: bool = True) -> dict:
         """Parse given usage details."""
         if "result" in _response:
             _response = _response["result"]
@@ -44,7 +45,10 @@ class AnglianWater:
             if update_cache:
                 self.meters[serial_number].update_reading_cache(_response)
         for callback in self.updated_data_callbacks:
-            callback()
+            if is_awaitable(callback):
+                await callback()
+            else:
+                callback()
         return _response
 
     async def get_usages(
@@ -57,7 +61,7 @@ class AnglianWater:
             _response = await self.api.send_request(
                 endpoint="get_usage_details", body=None, GRANULARITY=str(interval))
             break
-        return self.parse_usages(_response, update_cache)
+        return await self.parse_usages(_response, update_cache)
 
     async def update(self):
         """Update cached data."""

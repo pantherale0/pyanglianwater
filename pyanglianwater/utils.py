@@ -5,8 +5,21 @@ import hashlib
 import base64
 import urllib.parse
 import logging
+import inspect
 
 _LOGGER = logging.getLogger(__name__)
+
+def is_awaitable(func):
+    """
+    Check if a function is awaitable.
+
+    Args:
+        func: The function to check.
+
+    Returns:
+        True if the function is awaitable, False otherwise.
+    """
+    return inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
 
 def random_string(lower_bound: int, higher_bound: int) -> str:
     """
