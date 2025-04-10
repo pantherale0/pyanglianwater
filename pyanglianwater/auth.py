@@ -25,7 +25,8 @@ from .const import (
 from .exceptions import (
     ExpiredAccessTokenError,
     UnknownEndpointError,
-    InvalidAccountIdError
+    InvalidAccountIdError,
+    SelfAssertedError
 )
 from .utils import (
     random_string,
@@ -101,6 +102,8 @@ class MSOB2CAuth(BaseAuth):
         """Return the access token."""
         if self._refresh_token is not None:
             return self._refresh_token
+        if self.auth_data is None:
+            return None
         return self.auth_data.get("refresh_token")
 
     @property
@@ -177,10 +180,15 @@ class MSOB2CAuth(BaseAuth):
             data=data,
         )
         data = await asserted_login_response.json(content_type="text/json")
-        if asserted_login_response.status != 200 or int(data["status"]) != 200:
+        status = int(data.get("status"))
+        if asserted_login_response.status != 200 or status != 200:
             _LOGGER.error("B2C Auth: SelfAsserted request failed %s: %s",
                           asserted_login_response.status,
                           data)
+            if status == 400:
+                raise SelfAssertedError(
+                    f'{data.get("errorCode", "Unknown")} {data.get("message", "Unknown")}'
+                )
             return None
 
         return asserted_login_response
