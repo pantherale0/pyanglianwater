@@ -126,7 +126,8 @@ class MSOB2CAuth(BaseAuth):
                 CODE_CHALLENGE=self._pkce_challenge,
                 EMAIL=self.username,
                 STATE=self._state
-            )
+            ),
+            allow_redirects=False
         )
 
         if not auth_response.ok:
@@ -134,6 +135,13 @@ class MSOB2CAuth(BaseAuth):
             _LOGGER.error("B2C Auth: Initial Authorization URL request failed %s: %s",
                           auth_response.status, data)
             return None
+
+        if auth_response.status == 302:
+            location = auth_response.headers.get("Location")
+            if not location:
+                _LOGGER.error("B2C Auth: Location header not found")
+                return None
+            return location
 
         html = await auth_response.text()
         match = re.search(r"var SETTINGS = {([^;]+)};", html)
@@ -300,14 +308,16 @@ class MSOB2CAuth(BaseAuth):
         auth_data = await self._get_initial_auth_data()
         if auth_data is None:
             return
-        self._csrf_token, trans_id = auth_data
-        asserted_response = await self._submit_self_asserted_form(trans_id)
-        if asserted_response is None:
-            return
-        redirect_location = await self._get_confirmation_redirect()
-        if redirect_location is None:
-            return
-
+        if isinstance(auth_data, tuple):
+            self._csrf_token, trans_id = auth_data
+            asserted_response = await self._submit_self_asserted_form(trans_id)
+            if asserted_response is None:
+                return
+            redirect_location = await self._get_confirmation_redirect()
+            if redirect_location is None:
+                return
+        elif "uk.co.anglianwater.myaccount://" in auth_data:
+            redirect_location = auth_data
         _, code = decode_oauth_redirect(redirect_location)
         if not code:
             _LOGGER.error("B2C Auth: Code not found")
