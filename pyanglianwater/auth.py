@@ -44,10 +44,10 @@ class BaseAuth:
     access_token: str = None
     username: str = None
     _password: str = None
-    account_number: str = None
+    _account_number: str = None
     next_refresh: datetime = None
 
-    def __init__(self, username, password, session=None, refresh_token=None):
+    def __init__(self, username, password, session=None, refresh_token=None, account_number=None):
         if session:
             self._auth_session = session
         else:
@@ -55,6 +55,7 @@ class BaseAuth:
         self.username = username
         self._password = password
         self._refresh_token = refresh_token
+        self._account_number = account_number
 
     async def send_refresh_request(self):
         """Send a authenticated refresh request."""
@@ -86,6 +87,8 @@ class MSOB2CAuth(BaseAuth):
     @property
     def account_number(self) -> str:
         """Return the account id."""
+        if self._account_number is not None:
+            return encrypt_string_to_charcode_hex(self._account_number)
         return encrypt_string_to_charcode_hex(
             self._decoded_access_token.get("extension_accountNumber", "")
         )
