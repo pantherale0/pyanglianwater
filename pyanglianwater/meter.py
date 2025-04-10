@@ -10,11 +10,9 @@ class SmartMeter:
     def __init__(
             self,
             serial_number,
-            last_reading=0.0,
             tariff_rate: float=0.0
         ):
         self.serial_number = serial_number
-        self.last_reading = last_reading
         self.readings = []
         self.tariff_rate = tariff_rate
 
@@ -67,6 +65,13 @@ class SmartMeter:
         if len(self.readings) == 0:
             return 0.0
         return float(self.readings[-1]["consumption"])
+
+    @property
+    def latest_read(self) -> float:
+        """Returns the latest read for the smart meter."""
+        if len(self.readings) == 0:
+            return 0.0
+        return float(self.readings[-1]["read"])
 
     def to_dict(self) -> dict:
         """Returns the SmartMeter object data as a dictionary."""
