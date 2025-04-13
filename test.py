@@ -30,7 +30,7 @@ async def main():
         except Exception as exc:
             _LOGGER.error(exc)
 
-    water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian", tariff="Standard")
+    water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian")
     await water.update()
 
     while True:

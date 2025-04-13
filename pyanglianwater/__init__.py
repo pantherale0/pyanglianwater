@@ -8,7 +8,7 @@ import fiscalyear
 from .api import API
 from .auth import BaseAuth
 from .enum import UsagesReadGranularity
-from .exceptions import TariffNotAvailableError
+from .exceptions import TariffNotAvailableError, SmartMeterUnavailableError
 from .meter import SmartMeter
 from .utils import is_awaitable
 
@@ -17,8 +17,8 @@ class AnglianWater:
 
     api: API = None
     meters: dict[str, SmartMeter] = {}
+    account_config: dict = {}
     tariff_config: dict = None
-    current_tariff: str = None
     current_tariff_area: str = None
     _custom_rate: float = None
     _custom_service: float = None
@@ -27,6 +27,12 @@ class AnglianWater:
     def __init__(self, api: API):
         """Init AnglianWater."""
         self.api = api
+
+    @property
+    def current_tariff(self) -> str:
+        """Get the current tariff from the account config."""
+        tariff: str = self.account_config.get("tariff", "Standard")
+        return tariff.replace("tariff", "").strip()
 
     @property
     def current_tariff_rate(self) -> float:
@@ -140,21 +146,26 @@ class AnglianWater:
         cls,
         authenticator: BaseAuth,
         area: str,
-        tariff: str = None,
         custom_rate: float = None,
-        custom_service: float = None
+        custom_service: float = None,
     ) -> 'AnglianWater':
         """Create a new instance of Anglian Water from the API."""
         self = cls(API(authenticator))
         self.tariff_config = await self.api.load_tariff_data()
+        self.account_config = await self.api.send_request(
+            endpoint="get_account",
+            body=None
+        )
+        self.account_config = self.account_config.get("result", {})
+        if self.account_config.get("meter_type", "") != "SmartMeter":
+            raise SmartMeterUnavailableError("The account does not have a smart meter.")
         if area is not None and area not in self.tariff_config:
             raise TariffNotAvailableError("The provided tariff does not exist.")
-        if tariff is not None and area in self.tariff_config:
-            if tariff not in self.tariff_config[area]:
-                raise TariffNotAvailableError("The provided tariff does not exist.")
-            self.tariff_config = self.tariff_config[area][tariff]
+        if self.current_tariff is not None and area in self.tariff_config:
+            if self.current_tariff not in self.tariff_config[area]:
+                raise TariffNotAvailableError("The tariff on the account does not exist.")
+            self.tariff_config = self.tariff_config[area][self.current_tariff]
             self._custom_rate = custom_rate
             self._custom_service = custom_service
-        self.current_tariff = tariff
         self.current_tariff_area = area
         return self
