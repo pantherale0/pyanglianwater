@@ -98,7 +98,7 @@ class MSOB2CAuth(BaseAuth):
         if self._account_number is not None:
             return encrypt_string_to_charcode_hex(self._account_number)
         return encrypt_string_to_charcode_hex(
-            self._decoded_access_token.get("extension_accountNumber", "")
+            self._decoded_access_token.get("extension_defaultAccountNumber", "")
         )
 
     @property

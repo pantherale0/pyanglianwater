@@ -2,7 +2,7 @@
 
 AW_TARIFF_URL = (
     "https://raw.githubusercontent.com/pantherale0"
-    "/pyanglianwater/refs/heads/main/charges.json"
+    "/pyanglianwater/refs/heads/main/charges.json?_"
 )
 
 AW_APP_USER_AGENT = (
