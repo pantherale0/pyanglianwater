@@ -129,6 +129,7 @@ class AnglianWater:
             "custom_service": self._custom_service,
             "tariff_config": self.tariff_config,
             "current_tariff_year": self.get_tariff_year(dt.now()),
+            "account_config": self.account_config,
         }
 
     def __iter__(self):
