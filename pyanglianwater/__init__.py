@@ -1,10 +1,12 @@
 """The core Anglian Water module."""
 
 from typing import Callable
+from datetime import datetime as dt
+
+import fiscalyear
 
 from .api import API
 from .auth import BaseAuth
-from .const import ANGLIAN_WATER_AREAS
 from .enum import UsagesReadGranularity
 from .exceptions import TariffNotAvailableError
 from .meter import SmartMeter
@@ -15,15 +17,54 @@ class AnglianWater:
 
     api: API = None
     meters: dict[str, SmartMeter] = {}
+    tariff_config: dict = None
     current_tariff: str = None
     current_tariff_area: str = None
-    current_tariff_rate: float = 0.0
-    current_tariff_service: float = None
+    _custom_rate: float = None
+    _custom_service: float = None
     updated_data_callbacks: list[Callable] = []
 
     def __init__(self, api: API):
         """Init AnglianWater."""
         self.api = api
+
+    @property
+    def current_tariff_rate(self) -> float:
+        """Get the current tariff rate from the tariff config."""
+        return self.get_tariff_rate(dt.now())
+
+    @property
+    def current_tariff_service(self) -> float:
+        """Get the current tariff service from the tariff config."""
+        return self.get_tariff_service(dt.now())
+
+    def get_tariff_service(self, date: dt) -> float:
+        """Get the tariff service."""
+        if self._custom_service is not None:
+            return self._custom_service
+        return self.get_tariff_config(date).get("service", 0.0)
+
+    def get_tariff_rate(self, date: dt) -> float:
+        """Get the tariff rate."""
+        if self._custom_rate is not None:
+            return self._custom_rate
+        return self.get_tariff_config(date).get("rate", 0.0)
+
+    def get_tariff_config(self, date: dt) -> dict:
+        """Get the tariff config."""
+        return self.tariff_config.get(
+            self.get_tariff_year(date), {}
+        )
+
+    def get_tariff_year(self, date: dt) -> dict:
+        """Get the current tariff year."""
+        with fiscalyear.fiscal_calendar("same", start_month=4, start_day=1):
+            finyear = fiscalyear.FiscalDate(
+                year=date.year,
+                month=date.month,
+                day=date.day
+            )
+        return f"{str(int(finyear.fiscal_year)-1)}-{str(finyear.fiscal_year)[2:]}"
 
     async def parse_usages(self, _response, update_cache: bool = True) -> dict:
         """Parse given usage details."""
@@ -40,7 +81,7 @@ class AnglianWater:
             if serial_number not in self.meters:
                 self.meters[serial_number] = SmartMeter(
                     serial_number=serial_number,
-                    tariff_rate=self.current_tariff_rate
+                    tariff_config=self.get_tariff_config
                 )
             if update_cache:
                 self.meters[serial_number].update_reading_cache(_response)
@@ -77,7 +118,11 @@ class AnglianWater:
             "current_tariff": self.current_tariff,
             "current_tariff_area": self.current_tariff_area,
             "current_tariff_rate": self.current_tariff_rate,
-            "current_tariff_service": self.current_tariff_service
+            "current_tariff_service": self.current_tariff_service,
+            "custom_rate": self._custom_rate,
+            "custom_service": self._custom_service,
+            "tariff_config": self.tariff_config,
+            "current_tariff_year": self.get_tariff_year(dt.now()),
         }
 
     def __iter__(self):
@@ -101,18 +146,15 @@ class AnglianWater:
     ) -> 'AnglianWater':
         """Create a new instance of Anglian Water from the API."""
         self = cls(API(authenticator))
-        if area is not None and area not in ANGLIAN_WATER_AREAS:
+        self.tariff_config = await self.api.load_tariff_data()
+        if area is not None and area not in self.tariff_config:
             raise TariffNotAvailableError("The provided tariff does not exist.")
-        if area is not None:
-            self.current_tariff_area = area
-        if tariff is not None and area in ANGLIAN_WATER_AREAS:
-            if tariff not in ANGLIAN_WATER_AREAS[area]:
+        if tariff is not None and area in self.tariff_config:
+            if tariff not in self.tariff_config[area]:
                 raise TariffNotAvailableError("The provided tariff does not exist.")
-            self.current_tariff = tariff
-            if ANGLIAN_WATER_AREAS[area][tariff].get("custom", False):
-                self.current_tariff_rate = custom_rate
-                self.current_tariff_service = custom_service
-            else:
-                self.current_tariff_rate = ANGLIAN_WATER_AREAS[area][tariff]["rate"]
-                self.current_tariff_service = ANGLIAN_WATER_AREAS[area][tariff]["service"]
+            self.tariff_config = self.tariff_config[area][tariff]
+            self._custom_rate = custom_rate
+            self._custom_service = custom_service
+        self.current_tariff = tariff
+        self.current_tariff_area = area
         return self

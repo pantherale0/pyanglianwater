@@ -1,81 +1,101 @@
 {
     "Anglian": {
-        "2024-25": {
-            "Standard": {
+        "Standard": {
+            "2024-25": {
                 "rate": 2.0954,
                 "service": 37.00
             },
-            "LITE": {
+            "2025-26": {
+                "rate": 2.6882,
+                "service": 52.25
+            }
+        },
+        "LITE": {
+            "2024-25": {
                 "rate": 1.5716,
                 "service": 27.75
-            },
-            "AquaCare Plus": {
+            }
+        },
+        "AquaCare Plus": {
+            "2024-25": {
                 "rate": 1.0087,
                 "service": 118.50
-            },
-            "Extra LITE": {
+            }
+        },
+        "Extra LITE": {
+            "2024-25": {
                 "rate": 1.0477,
                 "service": 18.50
-            },
-            "LITE 60": {
+            }
+        },
+        "LITE 60": {
+            "2024-25": {
                 "rate": 0.8382,
                 "service": 14.80
-            },
-            "LITE 80": {
+            }
+        },
+        "LITE 80": {
+            "2024-25": {
                 "rate": 0.4191,
                 "service": 7.40
-            },
-            "WaterSure": {
+            }
+        },
+        "WaterSure": {
+            "2024-25": {
                 "rate": 241,
                 "interval_mode": true,
                 "interval": "year"
             }
-        },
-        "2025-26": {
-            "Standard": {
-                "rate": 2.6882,
-                "service": 52.25
-            }
         }
     },
     "Hartlepool": {
-        "2024-25": {
-            "Standard": {
+        "Standard": {
+            "2024-25": {
                 "rate": 1.2195,
                 "service": 31.50
             },
-            "LITE": {
+            "2025-26": {
+                "rate": 1.5118,
+                "service": 43.50
+            }
+        },
+        "LITE": {
+            "2024-25": {
                 "rate": 0.9146,
                 "service": 23.60
-            },
-            "AquaCare Plus": {
+            }
+        },
+        "AquaCare Plus": {
+            "2024-25": {
                 "rate": 0.7128,
                 "service": 69.50
-            },
-            "Extra LITE": {
+            }
+        },
+        "Extra LITE": {
+            "2024-25": {
                 "rate": 0.6098,
                 "service": 15.75
-            },
-            "LITE 60": {
+            }
+        },
+        "LITE 60": {
+            "2024-25": {
                 "rate": 0.4878,
                 "service": 12.60
-            },
-            "LITE 80": {
+            }
+        },
+        "LITE 80": {
+            "2024-25": {
                 "rate": 0.2439,
                 "service": 6.30
-            },
-            "WaterSure": {
+            }
+        },
+        "WaterSure": {
+            "2024-25": {
                 "rate": 144,
                 "interval_mode": true,
                 "interval": "year"
-            }
-        },
-        "2025-26": {
-            "Standard": {
-                "rate": 1.5118,
-                "service": 43.50
             },
-            "WaterSure": {
+            "2025-26": {
                 "rate": 185,
                 "interval_mode": true,
                 "interval": "year"
@@ -84,61 +104,69 @@
     },
     "Finningley": {},
     "Northstowe": {
-        "2024-25": {
-            "Everyday": {
+        "Everyday": {
+            "2024-25": {
                 "rate": 1.1053,
                 "service": 47.28
             },
-            "WaterSure": {
+            "2025-26": {
+                "rate": 1.3864,
+                "service": 58.93
+            }
+        },
+        "WaterSure": {
+            "2024-25": {
                 "rate": 164.69,
                 "interval_mode": true,
                 "interval": "year"
-            },
-            "LITE": {
-                "rate": 0.8290,
-                "service": 35.45
-            },
-            "Extra LITE": {
-                "rate": 0.5527,
-                "service": 23.60
             }
         },
-        "2025-26": {
-            "Everyday": {
-                "rate": 1.3864,
-                "service": 58.93
+        "LITE": {
+            "2024-25": {
+                "rate": 0.8290,
+                "service": 35.45
+            }
+        },
+        "Extra LITE": {
+            "2024-25": {
+                "rate": 0.5527,
+                "service": 23.60
             }
         }
     },
     "Woods Meadow": {
-        "2024-25": {
-            "Everyday": {
+        "Everyday": {
+            "2024-25": {
                 "rate": 1.746,
                 "service": 52.26
             },
-            "Watersure": {
+            "2025-26": {
+                "rate": 1.9723,
+                "service": 61.96
+            }
+        },
+        "Watersure": {
+            "2024-25": {
                 "rate": 252.08,
                 "interval_mode": true,
                 "interval": "year"
             },
-            "LITE": {
-                "rate": 1.3095,
-                "service": 39.20
-            },
-            "Extra LITE": {
-                "rate": 0.8730,
-                "service": 26.13
-            }
-        },
-        "2025-26": {
-            "Everyday": {
-                "rate": 1.9723,
-                "service": 61.96
-            },
-            "Watersure": {
+            "2025-26": {
                 "rate": 289.81,
                 "interval_mode": true,
                 "interval": "year"
+            }
+        },
+        "LITE": {
+            "2024-25": {
+                "rate": 1.3095,
+                "service": 39.20
+            }
+        },
+        "Extra LITE": {
+            "2024-25": {
+                "rate": 0.8730,
+                "service": 26.13
             }
         }
     }

@@ -7,14 +7,23 @@ class SmartMeter:
     A class to represent a smart water meter.
     """
 
+    last_reading: float = 0.0
+
     def __init__(
             self,
             serial_number,
-            tariff_rate: float=0.0
+            tariff_config = None
         ):
         self.serial_number = serial_number
         self.readings = []
-        self.tariff_rate = tariff_rate
+        self._tariff_config = tariff_config
+
+    @property
+    def tariff_rate(self) -> float:
+        """Returns the tariff rate for the smart meter."""
+        if self._tariff_config is None:
+            return 0.0
+        return self._tariff_config(datetime.now()).get("rate", 0.0)
 
     def update_reading_cache(
             self,
@@ -47,7 +56,8 @@ class SmartMeter:
             if previous_read is None:
                 previous_read = float(reading["read"])
                 continue
-            total += (reading["read"] - previous_read) * self.tariff_rate
+            total += (reading["read"] - previous_read) * self._tariff_config(
+                datetime.fromisoformat(reading["read_at"])).get("rate", 0.0)
             previous_read = float(reading["read"])
         return total
 

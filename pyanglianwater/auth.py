@@ -20,7 +20,8 @@ from .const import (
     AUTH_MSO_REDIR_URI,
     AW_APP_USER_AGENT,
     AW_APP_ENDPOINTS,
-    AW_APP_BASEURL
+    AW_APP_BASEURL,
+    AW_TARIFF_URL
 )
 from .exceptions import (
     ExpiredAccessTokenError,
@@ -73,6 +74,13 @@ class BaseAuth:
     async def send_request(self, endpoint: str, body: dict, **kwargs):
         """Send a request to an API."""
         raise NotImplementedError("Function not available.")
+
+    async def get_tariff_data(self) -> dict:
+        """Retrieve tariff data from GitHub."""
+        response = await self._auth_session.get(AW_TARIFF_URL)
+        if response.ok:
+            return json.loads(await response.text())
+        _LOGGER.error("Failed to retrieve tariff data: %s", response.status)
 
 class MSOB2CAuth(BaseAuth):
     """Represent an instance of MSO Auth."""

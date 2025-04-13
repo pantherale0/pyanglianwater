@@ -1,5 +1,10 @@
 """Anglian Water consts."""
 
+AW_TARIFF_URL = (
+    "https://raw.githubusercontent.com/pantherale0"
+    "/pyanglianwater/refs/heads/main/charges.json"
+)
+
 AW_APP_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 4 XL Build/UQ1A.240205.004; wv) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -69,128 +74,3 @@ AW_ENCRYPTION_IV_SIZE = 16 # 128 bits
 AW_ENCRYPTION_KEY_SIZE = 32 # 256 bits
 AW_ENCRYPTION_ITERATIONS = 100
 AW_ENCRYPTION_PBKDF2_HASH = "sha1"
-
-ANGLIAN_WATER_AREAS = {
-    "Anglian": {
-        "Standard": {
-            "rate": 2.0954,
-            "service": 37.00
-        },
-        "LITE": {
-            "rate": 1.5716,
-            "service": 27.75
-        },
-        "AquaCare Plus": {
-            "rate": 1.0087,
-            "service": 118.50
-        },
-        "Extra LITE": {
-            "rate": 1.0477,
-            "service": 18.50
-        },
-        "LITE 60": {
-            "rate": 0.8382,
-            "service": 14.80
-        },
-        "LITE 80": {
-            "rate": 0.4191,
-            "service": 7.40
-        },
-        "WaterSure": {
-            "rate": 241,
-            "interval_mode": True,
-            "interval": "year"
-        },
-        "Custom": {
-            "custom": True,
-            "rate": 0.0
-        }
-    },
-    "Hartlepool": {
-        "Standard": {
-            "rate": 1.2195,
-            "service": 31.50
-        },
-        "LITE": {
-            "rate": 0.9146,
-            "service": 23.60
-        },
-        "AquaCare Plus": {
-            "rate": 0.7128,
-            "service": 69.50
-        },
-        "Extra LITE": {
-            "rate": 0.6098,
-            "service": 15.75
-        },
-        "LITE 60": {
-            "rate": 0.4878,
-            "service": 12.60
-        },
-        "LITE 80": {
-            "rate": 0.2439,
-            "service": 6.30
-        },
-        "WaterSure": {
-            "rate": 144,
-            "interval_mode": True,
-            "interval": "year"
-        },
-        "Custom": {
-            "custom": True,
-            "rate": 0.0
-        }
-    },
-    "Finningley": {
-        "Custom": {
-            "custom": True,
-            "rate": 0.0
-        }
-    },
-    "Northstowe": {
-        "Everyday": {
-            "rate": 1.1053,
-            "service": 47.28
-        },
-        "WaterSure": {
-            "rate": 164.69,
-            "interval_mode": True,
-            "interval": "year"
-        },
-        "LITE": {
-            "rate": 0.8290,
-            "service": 35.45
-        },
-        "Extra LITE": {
-            "rate": 0.5527,
-            "service": 23.60
-        },
-        "Custom": {
-            "custom": True,
-            "rate": 0.0
-        }
-    },
-    "Woods Meadow": {
-        "Everyday": {
-            "rate": 1.746,
-            "service": 52.26
-        },
-        "Watersure": {
-            "rate": 252.08,
-            "interval_mode": True,
-            "interval": "year"
-        },
-        "LITE": {
-            "rate": 1.3095,
-            "service": 39.20
-        },
-        "Extra LITE": {
-            "rate": 0.8730,
-            "service": 26.13
-        },
-        "Custom": {
-            "custom": True,
-            "rate": 0.0
-        }
-    }
-}
