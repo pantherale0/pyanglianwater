@@ -70,7 +70,7 @@ class AnglianWater:
                 month=date.month,
                 day=date.day
             )
-        return f"{str(int(finyear.fiscal_year)-1)}-{str(finyear.fiscal_year)[2:]}"
+        return f"{str(int(finyear.fiscal_year))}-{str(finyear.fiscal_year+1)[2:]}"
 
     async def parse_usages(self, _response, update_cache: bool = True) -> dict:
         """Parse given usage details."""
