@@ -34,7 +34,10 @@ class SmartMeter:
         for reading in reads:
             for meter in reading["meters"]:
                 if meter["meter_serial_number"] == self.serial_number:
-                    self.readings.append(meter)
+                    self.readings.append({
+                        **meter,
+                        "consumption_cost": (self.tariff_rate / 1000) * meter["consumption"]
+                    })
                     self.last_reading = float(meter["read"])
 
     @property
@@ -51,14 +54,8 @@ class SmartMeter:
     def get_yesterday_cost(self) -> float:
         """Returns the cost of the previous days readings for the smart meter."""
         total = 0.0
-        previous_read = None
         for reading in self.get_yesterday_readings:
-            if previous_read is None:
-                previous_read = float(reading["read"])
-                continue
-            total += (reading["read"] - previous_read) * self._tariff_config(
-                datetime.fromisoformat(reading["read_at"])).get("rate", 0.0)
-            previous_read = float(reading["read"])
+            total += reading["consumption_cost"]
         return total
 
     @property
