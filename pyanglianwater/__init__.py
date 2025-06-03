@@ -158,7 +158,8 @@ class AnglianWater:
             body=None
         )
         self.account_config = self.account_config.get("result", {})
-        if self.account_config.get("meter_type", "") != "SmartMeter":
+        meter_type = self.account_config.get("meter_type", "")
+        if meter_type not in {"SmartMeter", "EnhancedSmartMeter"}:
             raise SmartMeterUnavailableError("The account does not have a smart meter.")
         if area is not None and area not in self.tariff_config:
             raise TariffNotAvailableError("The provided tariff does not exist.")
