@@ -29,3 +29,6 @@ class TokenRequestError(AuthError):
 
 class InvalidAccountIdError(AuthError):
     """403 Invalid account ID."""
+
+class TooManyRequestsError(Exception):
+    """429 Too Many Requests."""

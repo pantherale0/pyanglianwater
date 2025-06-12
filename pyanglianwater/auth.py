@@ -27,7 +27,8 @@ from .exceptions import (
     ExpiredAccessTokenError,
     UnknownEndpointError,
     InvalidAccountIdError,
-    SelfAssertedError
+    SelfAssertedError,
+    TooManyRequestsError
 )
 from .utils import (
     random_string,
@@ -373,4 +374,6 @@ class MSOB2CAuth(BaseAuth):
                     raise ExpiredAccessTokenError()
                 if _response.status == 403:
                     raise InvalidAccountIdError()
+                if _response.status == 429:
+                    raise TooManyRequestsError()
                 raise UnknownEndpointError(_response.status, await _response.text())
