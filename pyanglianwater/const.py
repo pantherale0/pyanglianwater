@@ -38,10 +38,10 @@ AUTH_MSO_SCOPES = [
     "offline_access"
 ]
 AUTH_MSO_CODE_CHALLENGE_METHOD = "S256"
-AUTH_MSO_DEVICE_TYPE = "mobile"
-AUTH_MSO_PLATFORM = "app"
-AUTH_MSO_OS = "Android"
-AUTH_MSO_APP_VERSION = "1.30.1"
+AUTH_MSO_DEVICE_TYPE = "desktop"
+AUTH_MSO_PLATFORM = "web"
+AUTH_MSO_OS = "Linux"
+AUTH_MSO_APP_VERSION = "1.58.0"
 
 AUTH_MSO_STEP_1_URL = (
     f"{AUTH_MSO_BASE}/oauth2/v2.0/authorize?client_id={AUTH_MSO_CLIENT_ID}"
@@ -63,7 +63,7 @@ AUTH_MSO_CONFIRM_URL = (
 )
 AUTH_MSO_OAUTH_SERVICE = (
     "https://customeronlinejourney.b2clogin.com/customeronlinejourney.onmicrosoft.com/"
-    "B2C_1A_SIGNUPORSIGNIN/oauth2/v2.0/"
+    "B2C_1A_SIGNUPORSIGNIN/oauth2/v2.0"
 )
 AUTH_MSO_GET_TOKEN_URL = f"{AUTH_MSO_OAUTH_SERVICE}/token"
 AUTH_MSO_REFRESH_TOKEN_URL = f"{AUTH_MSO_OAUTH_SERVICE}/refresh"
