@@ -15,18 +15,22 @@ from .utils import is_awaitable
 class AnglianWater:
     """Anglian Water"""
 
-    api: API = None
-    meters: dict[str, SmartMeter] = {}
-    account_config: dict = {}
-    tariff_config: dict = None
-    current_tariff_area: str = None
-    _custom_rate: float = None
-    _custom_service: float = None
-    updated_data_callbacks: list[Callable] = []
-
-    def __init__(self, api: API):
+    def __init__(
+            self,
+            authenticator: BaseAuth,
+            area: str | None = None,
+            custom_rate: float | None = None,
+            custom_service: float | None = None,):
         """Init AnglianWater."""
-        self.api = api
+        self.api = API(authenticator)
+        self.meters: dict[str, SmartMeter] = {}
+        self.account_config: dict = {}
+        self.tariff_config: dict | None = None
+        self._custom_rate: float | None = custom_rate
+        self._custom_service: float | None = custom_service
+        self._area: str | None = area
+        self.updated_data_callbacks: list[Callable] = []
+        self._first_update = True
 
     @property
     def current_tariff(self) -> str:
@@ -110,8 +114,35 @@ class AnglianWater:
             break
         return await self.parse_usages(_response, update_cache)
 
+    async def validate_smart_meter(self):
+        """Validates the account has a smart meter."""
+        self.account_config = await self.api.send_request(
+                endpoint="get_account",
+                body=None
+            )
+        self.account_config = self.account_config.get("result", {})
+        meter_type = self.account_config.get("meter_type", "")
+        if meter_type not in {"SmartMeter", "EnhancedSmartMeter"}:
+            raise SmartMeterUnavailableError("The account does not have a smart meter.")
+
+    async def load_tariff_data(self):
+        """Load tariff data."""
+        self.tariff_config = await self.api.load_tariff_data()
+        if self._area is not None and self._area not in self.tariff_config:
+            raise TariffNotAvailableError("The provided tariff does not exist.")
+        if self.current_tariff is not None and self._area in self.tariff_config:
+            if self.current_tariff not in self.tariff_config[self._area]:
+                raise TariffNotAvailableError("The tariff on the account does not exist.")
+            self.tariff_config = self.tariff_config[self._area][self.current_tariff]
+            self._custom_rate = self._custom_rate
+            self._custom_service = self._custom_service
+
     async def update(self):
         """Update cached data."""
+        if self._first_update:
+            await self.validate_smart_meter()
+            await self.load_tariff_data()
+            self._first_update = False
         await self.get_usages()
 
     def to_dict(self) -> dict:
@@ -122,7 +153,7 @@ class AnglianWater:
                 k: v.to_dict() for k, v in self.meters.items()
             },
             "current_tariff": self.current_tariff,
-            "current_tariff_area": self.current_tariff_area,
+            "current_tariff_area": self._area,
             "current_tariff_rate": self.current_tariff_rate,
             "current_tariff_service": self.current_tariff_service,
             "custom_rate": self._custom_rate,
@@ -141,33 +172,3 @@ class AnglianWater:
         if not callable(callback):
             raise ValueError("Callback must be callable")
         self.updated_data_callbacks.append(callback)
-
-    @classmethod
-    async def create_from_authenticator(
-        cls,
-        authenticator: BaseAuth,
-        area: str,
-        custom_rate: float = None,
-        custom_service: float = None,
-    ) -> 'AnglianWater':
-        """Create a new instance of Anglian Water from the API."""
-        self = cls(API(authenticator))
-        self.tariff_config = await self.api.load_tariff_data()
-        self.account_config = await self.api.send_request(
-            endpoint="get_account",
-            body=None
-        )
-        self.account_config = self.account_config.get("result", {})
-        meter_type = self.account_config.get("meter_type", "")
-        if meter_type not in {"SmartMeter", "EnhancedSmartMeter"}:
-            raise SmartMeterUnavailableError("The account does not have a smart meter.")
-        if area is not None and area not in self.tariff_config:
-            raise TariffNotAvailableError("The provided tariff does not exist.")
-        if self.current_tariff is not None and area in self.tariff_config:
-            if self.current_tariff not in self.tariff_config[area]:
-                raise TariffNotAvailableError("The tariff on the account does not exist.")
-            self.tariff_config = self.tariff_config[area][self.current_tariff]
-            self._custom_rate = custom_rate
-            self._custom_service = custom_service
-        self.current_tariff_area = area
-        return self
