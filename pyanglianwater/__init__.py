@@ -142,6 +142,7 @@ class AnglianWater:
         if self._first_update:
             await self.validate_smart_meter()
             await self.load_tariff_data()
+            self._first_update = False
         await self.get_usages()
 
     def to_dict(self) -> dict:
