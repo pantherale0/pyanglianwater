@@ -32,8 +32,8 @@ class SmartMeter:
                         **meter
                     })
                     self.last_reading = float(meter["read"])
-        self.yesterday_water_cost = costs["result"]["water_cost"]
-        self.yesterday_sewerage_cost = costs["result"]["sewerage_cost"]
+        self.yesterday_water_cost = costs.get("result", {}).get("water_cost", 0.0)
+        self.yesterday_sewerage_cost = costs.get("result", {}).get("sewerage_cost", 0.0)
 
     @property
     def get_yesterday_readings(self) -> list:
