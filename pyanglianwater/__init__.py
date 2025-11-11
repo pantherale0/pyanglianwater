@@ -1,14 +1,12 @@
 """The core Anglian Water module."""
 
 from typing import Callable
-from datetime import datetime as dt
-
-import fiscalyear
+from datetime import timedelta, datetime as dt
 
 from .api import API
 from .auth import BaseAuth
 from .enum import UsagesReadGranularity
-from .exceptions import TariffNotAvailableError, SmartMeterUnavailableError
+from .exceptions import SmartMeterUnavailableError
 from .meter import SmartMeter
 from .utils import is_awaitable
 
@@ -17,18 +15,11 @@ class AnglianWater:
 
     def __init__(
             self,
-            authenticator: BaseAuth,
-            area: str | None = None,
-            custom_rate: float | None = None,
-            custom_service: float | None = None,):
+            authenticator: BaseAuth,):
         """Init AnglianWater."""
         self.api = API(authenticator)
         self.meters: dict[str, SmartMeter] = {}
         self.account_config: dict = {}
-        self.tariff_config: dict | None = None
-        self._custom_rate: float | None = custom_rate
-        self._custom_service: float | None = custom_service
-        self._area: str | None = area
         self.updated_data_callbacks: list[Callable] = []
         self._first_update = True
 
@@ -38,45 +29,7 @@ class AnglianWater:
         tariff: str = self.account_config.get("tariff", "Standard")
         return tariff.replace("tariff", "").strip()
 
-    @property
-    def current_tariff_rate(self) -> float:
-        """Get the current tariff rate from the tariff config."""
-        return self.get_tariff_rate(dt.now())
-
-    @property
-    def current_tariff_service(self) -> float:
-        """Get the current tariff service from the tariff config."""
-        return self.get_tariff_service(dt.now())
-
-    def get_tariff_service(self, date: dt) -> float:
-        """Get the tariff service."""
-        if self._custom_service is not None:
-            return self._custom_service
-        return self.get_tariff_config(date).get("service", 0.0)
-
-    def get_tariff_rate(self, date: dt) -> float:
-        """Get the tariff rate."""
-        if self._custom_rate is not None:
-            return self._custom_rate
-        return self.get_tariff_config(date).get("rate", 0.0)
-
-    def get_tariff_config(self, date: dt) -> dict:
-        """Get the tariff config."""
-        return self.tariff_config.get(
-            self.get_tariff_year(date), {}
-        )
-
-    def get_tariff_year(self, date: dt) -> dict:
-        """Get the current tariff year."""
-        with fiscalyear.fiscal_calendar("same", start_month=4, start_day=1):
-            finyear = fiscalyear.FiscalDate(
-                year=date.year,
-                month=date.month,
-                day=date.day
-            )
-        return f"{str(int(finyear.fiscal_year))}-{str(finyear.fiscal_year+1)[2:]}"
-
-    async def parse_usages(self, _response, update_cache: bool = True) -> dict:
+    async def parse_usages(self, _response, _costs, update_cache: bool = True) -> dict:
         """Parse given usage details."""
         if "result" in _response:
             _response = _response["result"]
@@ -90,11 +43,10 @@ class AnglianWater:
             serial_number = meter["meter_serial_number"]
             if serial_number not in self.meters:
                 self.meters[serial_number] = SmartMeter(
-                    serial_number=serial_number,
-                    tariff_config=self.get_tariff_config
+                    serial_number=serial_number
                 )
             if update_cache:
-                self.meters[serial_number].update_reading_cache(_response)
+                self.meters[serial_number].update_reading_cache(_response, _costs)
         for callback in self.updated_data_callbacks:
             if is_awaitable(callback):
                 await callback()
@@ -108,11 +60,19 @@ class AnglianWater:
             update_cache: bool = True
         ) -> dict:
         """Calculates the usage using the provided date range."""
+        start = dt.today().replace(hour=23, minute=0, second=0)-timedelta(days=1)
         while True:
             _response = await self.api.send_request(
                 endpoint="get_usage_details", body=None, GRANULARITY=str(interval))
+            _costs = await self.api.send_request(
+                endpoint="",
+                body=None,
+                GRANULARITY=str(interval),
+                START=start.isoformat(),
+                END=(start + timedelta(days=1)).isoformat()
+            )
             break
-        return await self.parse_usages(_response, update_cache)
+        return await self.parse_usages(_response, _costs, update_cache)
 
     async def validate_smart_meter(self):
         """Validates the account has a smart meter."""
@@ -125,23 +85,10 @@ class AnglianWater:
         if meter_type not in {"SmartMeter", "EnhancedSmartMeter"}:
             raise SmartMeterUnavailableError("The account does not have a smart meter.")
 
-    async def load_tariff_data(self):
-        """Load tariff data."""
-        self.tariff_config = await self.api.load_tariff_data()
-        if self._area is not None and self._area not in self.tariff_config:
-            raise TariffNotAvailableError("The provided tariff does not exist.")
-        if self.current_tariff is not None and self._area in self.tariff_config:
-            if self.current_tariff not in self.tariff_config[self._area]:
-                raise TariffNotAvailableError("The tariff on the account does not exist.")
-            self.tariff_config = self.tariff_config[self._area][self.current_tariff]
-            self._custom_rate = self._custom_rate
-            self._custom_service = self._custom_service
-
     async def update(self):
         """Update cached data."""
         if self._first_update:
             await self.validate_smart_meter()
-            await self.load_tariff_data()
             self._first_update = False
         await self.get_usages()
 
@@ -153,13 +100,6 @@ class AnglianWater:
                 k: v.to_dict() for k, v in self.meters.items()
             },
             "current_tariff": self.current_tariff,
-            "current_tariff_area": self._area,
-            "current_tariff_rate": self.current_tariff_rate,
-            "current_tariff_service": self.current_tariff_service,
-            "custom_rate": self._custom_rate,
-            "custom_service": self._custom_service,
-            "tariff_config": self.tariff_config,
-            "current_tariff_year": self.get_tariff_year(dt.now()),
             "account_config": self.account_config,
         }
 
@@ -172,3 +112,7 @@ class AnglianWater:
         if not callable(callback):
             raise ValueError("Callback must be callable")
         self.updated_data_callbacks.append(callback)
+
+    def remove_callback(self, callback):
+        """Remove a registered callback."""
+        self.updated_data_callbacks.remove(callback)

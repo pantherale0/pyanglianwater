@@ -75,13 +75,6 @@ class BaseAuth:
         """Send a request to an API."""
         raise NotImplementedError("Function not available.")
 
-    async def get_tariff_data(self) -> dict:
-        """Retrieve tariff data from GitHub."""
-        response = await self._auth_session.get(AW_TARIFF_URL)
-        if response.ok:
-            return json.loads(await response.text())
-        _LOGGER.error("Failed to retrieve tariff data: %s", response.status)
-
 class MSOB2CAuth(BaseAuth):
     """Represent an instance of MSO Auth."""
     _pkce_verifier = random_string(43,128)
@@ -349,8 +342,6 @@ class MSOB2CAuth(BaseAuth):
         """Send a request to the API, and return the JSON response."""
         if endpoint not in AW_APP_ENDPOINTS:
             raise ValueError("Provided API Endpoint does not exist.")
-
-
         _LOGGER.debug("Sending request to %s", endpoint)
         endpoint_map = AW_APP_ENDPOINTS[endpoint]
         await self.send_refresh_request()

@@ -1,10 +1,5 @@
 """Anglian Water consts."""
 
-AW_TARIFF_URL = (
-    "https://raw.githubusercontent.com/pantherale0"
-    "/pyanglianwater/refs/heads/main/charges.json?_"
-)
-
 AW_APP_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 4 XL Build/UQ1A.240205.004; wv) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -26,7 +21,14 @@ AW_APP_ENDPOINTS = {
     "get_account_summary": {
         "method": "GET",
         "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/billing/summary"
-    }
+    },
+    "get_usage_costs": {
+        "method": "GET",
+        "endpoint": (
+            "/myaccount/v1/accounts/{ACCOUNT_ID}/cost/usage/"
+            "/smart?frequency={GRANULARITY}&start={START}&end={END}"
+        )
+    },
 }
 AUTH_AW_BASE = "https://login.myaccount.anglianwater.co.uk"
 AUTH_MSO_BASE = f"{AUTH_AW_BASE}/CustomerOnlineJourney.onmicrosoft.com/B2C_1A_SIGNUPORSIGNIN"
@@ -41,7 +43,7 @@ AUTH_MSO_CODE_CHALLENGE_METHOD = "S256"
 AUTH_MSO_DEVICE_TYPE = "desktop"
 AUTH_MSO_PLATFORM = "web"
 AUTH_MSO_OS = "Linux"
-AUTH_MSO_APP_VERSION = "1.58.0"
+AUTH_MSO_APP_VERSION = "1.91.0"
 
 AUTH_MSO_STEP_1_URL = (
     f"{AUTH_MSO_BASE}/oauth2/v2.0/authorize?client_id={AUTH_MSO_CLIENT_ID}"

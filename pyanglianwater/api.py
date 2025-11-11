@@ -31,10 +31,6 @@ class API:
         """Send a request to the API using the authentication handler."""
         return await self._auth.send_request(endpoint=endpoint, body=body, **kwargs)
 
-    async def load_tariff_data(self) -> dict:
-        """Load tariff data from GitHub."""
-        return await self._auth.get_tariff_data()
-
     async def token_refresh(self):
         """Force token refresh."""
         return await self._auth.send_refresh_request()

@@ -8,26 +8,20 @@ class SmartMeter:
     """
 
     last_reading: float = 0.0
+    yesterday_water_cost: float = 0.0
+    yesterday_sewerage_cost: float = 0.0
 
     def __init__(
             self,
             serial_number,
-            tariff_config = None
         ):
         self.serial_number = serial_number
         self.readings = []
-        self._tariff_config = tariff_config
-
-    @property
-    def tariff_rate(self) -> float:
-        """Returns the tariff rate for the smart meter."""
-        if self._tariff_config is None:
-            return 0.0
-        return self._tariff_config(datetime.now()).get("rate", 0.0)
 
     def update_reading_cache(
             self,
-            reads: list
+            reads: list,
+            costs: dict
         ):
         """Updates the cache of meter reads for the smart meter."""
         self.readings = []
@@ -35,10 +29,11 @@ class SmartMeter:
             for meter in reading["meters"]:
                 if meter["meter_serial_number"] == self.serial_number:
                     self.readings.append({
-                        **meter,
-                        "consumption_cost": (self.tariff_rate / 1000) * meter["consumption"]
+                        **meter
                     })
                     self.last_reading = float(meter["read"])
+        self.yesterday_water_cost = costs["result"]["water_cost"]
+        self.yesterday_sewerage_cost = costs["result"]["sewerage_cost"]
 
     @property
     def get_yesterday_readings(self) -> list:
@@ -49,14 +44,6 @@ class SmartMeter:
             if datetime.fromisoformat(reading["read_at"]).date() == yesterday.date():
                 output.append(reading)
         return output
-
-    @property
-    def get_yesterday_cost(self) -> float:
-        """Returns the cost of the previous days readings for the smart meter."""
-        total = 0.0
-        for reading in self.get_yesterday_readings:
-            total += reading["consumption_cost"]
-        return total
 
     @property
     def get_yesterday_consumption(self) -> float:
@@ -86,7 +73,6 @@ class SmartMeter:
             "serial_number": self.serial_number,
             "last_reading": self.last_reading,
             "readings": self.readings,
-            "tariff_rate": self.tariff_rate,
             "consumption": self.latest_consumption,
         }
 
