@@ -26,7 +26,7 @@ AW_APP_ENDPOINTS = {
         "method": "GET",
         "endpoint": (
             "/myaccount/v1/accounts/{ACCOUNT_ID}/cost/usage/"
-            "/smart?frequency={GRANULARITY}&start={START}&end={END}"
+            "smart?frequency={GRANULARITY}&start={START}&end={END}"
         )
     },
 }
