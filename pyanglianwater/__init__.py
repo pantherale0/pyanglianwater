@@ -61,17 +61,15 @@ class AnglianWater:
         ) -> dict:
         """Calculates the usage using the provided date range."""
         start = dt.today().replace(hour=23, minute=0, second=0)-timedelta(days=1)
-        while True:
-            _response = await self.api.send_request(
-                endpoint="get_usage_details", body=None, GRANULARITY=str(interval))
-            _costs = await self.api.send_request(
-                endpoint="",
-                body=None,
-                GRANULARITY=str(interval),
-                START=start.isoformat(),
-                END=(start + timedelta(days=1)).isoformat()
-            )
-            break
+        _response = await self.api.send_request(
+            endpoint="get_usage_details", body=None, GRANULARITY=str(interval))
+        _costs = await self.api.send_request(
+            endpoint="get_usage_costs",
+            body=None,
+            GRANULARITY=str(interval),
+            START=start.isoformat(),
+            END=(start + timedelta(days=1)).isoformat()
+        )
         return await self.parse_usages(_response, _costs, update_cache)
 
     async def validate_smart_meter(self):
@@ -115,4 +113,5 @@ class AnglianWater:
 
     def remove_callback(self, callback):
         """Remove a registered callback."""
-        self.updated_data_callbacks.remove(callback)
+        if callback in self.updated_data_callbacks:
+            self.updated_data_callbacks.remove(callback)
