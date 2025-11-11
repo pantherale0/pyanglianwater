@@ -17,7 +17,8 @@ REQUIREMENTS = [
     # Add your list of production dependencies here, eg:
     # 'requests == 2.*',
     'pyjwt >= 2.6,< 3',
-    'fiscalyear >= 0.4.0'
+    'aiohttp >= 3',
+    'cryptography >= 46'
 ]
 
 DEV_REQUIREMENTS = [
