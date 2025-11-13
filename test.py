@@ -4,6 +4,8 @@ import os
 import logging
 import asyncio
 
+import aiohttp
+
 from dotenv import load_dotenv
 from pyanglianwater import AnglianWater
 from pyanglianwater.auth import MSOB2CAuth
@@ -21,6 +23,9 @@ async def main():
                 username=os.environ.get("AW_USERNAME") or input("Email: "),
                 password=os.environ.get("AW_PASSWORD") or input("Password: "),
                 refresh_token=os.environ.get("AW_REFRESH_TOKEN", None),
+                session=aiohttp.ClientSession(
+                    cookie_jar=aiohttp.CookieJar(quote_cookie=False)
+                )
             )
             await authenticator.send_login_request()
             _LOGGER.debug("Logged in. Ready..")
@@ -30,14 +35,15 @@ async def main():
         except Exception as exc:
             _LOGGER.error(exc)
 
-    water = await AnglianWater.create_from_authenticator(authenticator, area="Anglian")
+    water = AnglianWater(authenticator)
+    accounts = await water.api.get_associated_accounts()
     await water.update()
 
     while True:
         for m in water.meters.values():
             _LOGGER.debug(">> Meter %s", m.serial_number)
             _LOGGER.debug(">> Last reading %s", m.last_reading)
-            _LOGGER.debug(">> Yesterday cost %s", m.get_yesterday_cost)
+            _LOGGER.debug(">> Yesterday cost %s", m.yesterday_water_cost)
             _LOGGER.debug(">> Latest consumption %s", m.latest_consumption)
         await asyncio.sleep(30)
 

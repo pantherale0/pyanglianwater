@@ -99,6 +99,11 @@ class MSOB2CAuth(BaseAuth):
         return self._decoded_access_token.get("extension_accountNumber", "")
 
     @property
+    def business_partner_number(self) -> str:
+        """Return business partner number."""
+        return self._decoded_access_token.get("extension_business_partner_number", "")
+
+    @property
     def access_token(self) -> str:
         """Return the access token."""
         if self.auth_data is None:
@@ -353,7 +358,11 @@ class MSOB2CAuth(BaseAuth):
             _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
         headers = self.get_authenticated_headers
-        built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(ACCOUNT_ID=self.encrypted_account_number, **kwargs)
+        built_url = AW_APP_BASEURL + endpoint_map["endpoint"].format(
+            ACCOUNT_ID=self.encrypted_account_number,
+            BUSINESS_PARTNER_ID=encrypt_string_to_charcode_hex(self.business_partner_number),
+            **kwargs
+        )
         async with aiohttp.ClientSession() as _session:
             async with _session.request(
                 method=endpoint_map["method"],

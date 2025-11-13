@@ -29,6 +29,10 @@ AW_APP_ENDPOINTS = {
             "smart?frequency={GRANULARITY}&start={START}&end={END}"
         )
     },
+    "get_associated_accounts": {
+        "method": "GET",
+        "endpoint": "/myaccount/v1/businesspartners/{BUSINESS_PARTNER_ID}/associatedaccounts"
+    }
 }
 AUTH_AW_BASE = "https://login.myaccount.anglianwater.co.uk"
 AUTH_MSO_BASE = f"{AUTH_AW_BASE}/CustomerOnlineJourney.onmicrosoft.com/B2C_1A_SIGNUPORSIGNIN"
