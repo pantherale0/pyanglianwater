@@ -335,7 +335,7 @@ class MSOB2CAuth:
         )
 
     async def send_request(
-        self, method: str, url: str, body: dict | None, headers: dict, **kwargs
+        self, method: str, url: str, body: dict | None, headers: dict
     ) -> dict:
         """Send a request to the API, and return the JSON response."""
         await self.send_refresh_request()
