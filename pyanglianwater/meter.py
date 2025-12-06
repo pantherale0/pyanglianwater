@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+
 class SmartMeter:
     """
     A class to represent a smart water meter.
@@ -11,26 +12,17 @@ class SmartMeter:
     yesterday_water_cost: float = 0.0
     yesterday_sewerage_cost: float = 0.0
 
-    def __init__(
-            self,
-            serial_number
-        ):
+    def __init__(self, serial_number):
         self.serial_number = serial_number
         self.readings = []
 
-    def update_reading_cache(
-            self,
-            reads: list,
-            costs: dict
-        ):
+    def update_reading_cache(self, reads: list, costs: dict):
         """Updates the cache of meter reads for the smart meter."""
         self.readings = []
         for reading in reads:
             for meter in reading["meters"]:
                 if meter["meter_serial_number"] == self.serial_number:
-                    self.readings.append({
-                        **meter
-                    })
+                    self.readings.append({**meter})
                     self.last_reading = float(meter["read"])
         self.yesterday_water_cost = costs.get("result", {}).get("water_cost", 0.0)
         self.yesterday_sewerage_cost = costs.get("result", {}).get("sewerage_cost", 0.0)
