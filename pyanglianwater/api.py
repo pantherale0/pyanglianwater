@@ -44,10 +44,10 @@ class API:
             headers=self._auth.authenticated_headers,
         )
 
-    async def get_associated_accounts(self, account_number: str):
+    async def get_associated_accounts(self):
         """Get associated accounts."""
         return await self.send_request(
-            endpoint="get_associated_accounts", body=None, account_number=account_number
+            endpoint="get_associated_accounts", body=None, account_number=""
         )
 
     async def token_refresh(self):

@@ -335,24 +335,23 @@ class MSOB2CAuth:
         )
 
     async def send_request(
-        self, method: str, url: str, body: dict | None, headers=dict, **kwargs
+        self, method: str, url: str, body: dict | None, headers: dict, **kwargs
     ) -> dict:
         """Send a request to the API, and return the JSON response."""
         await self.send_refresh_request()
         if self.access_token is None:
             _LOGGER.debug("Access token unavailable, not logged in.")
             raise ExpiredAccessTokenError()
-        async with aiohttp.ClientSession() as _session:
-            async with _session.request(
-                method=method, url=url, headers=headers, json=body
-            ) as _response:
-                _LOGGER.debug(
-                    "Request to %s returned with status %s", url, _response.status
-                )
-                if _response.ok and _response.content_type == "application/json":
-                    return await _response.json()
-                if _response.status == 401:
-                    raise ExpiredAccessTokenError()
-                if _response.status == 403:
-                    raise InvalidAccountIdError()
-                raise UnknownEndpointError(_response.status, await _response.text())
+        async with self._auth_session.request(
+            method=method, url=url, headers=headers, json=body
+        ) as _response:
+            _LOGGER.debug(
+                "Request to %s returned with status %s", url, _response.status
+            )
+            if _response.ok and _response.content_type == "application/json":
+                return await _response.json()
+            if _response.status == 401:
+                raise ExpiredAccessTokenError()
+            if _response.status == 403:
+                raise InvalidAccountIdError()
+            raise UnknownEndpointError(_response.status, await _response.text())
