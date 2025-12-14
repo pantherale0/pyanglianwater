@@ -59,6 +59,13 @@ class SmartMeter:
             return 0.0
         return float(self.readings[-1]["read"])
 
+    @property
+    def last_updated(self) -> datetime | None:
+        """Returns the last updated time for the smart meter."""
+        if len(self.readings) == 0:
+            return None
+        return datetime.fromisoformat(self.readings[-1]["read_at"])
+
     def to_dict(self) -> dict:
         """Returns the SmartMeter object data as a dictionary."""
         return {
