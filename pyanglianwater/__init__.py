@@ -1,15 +1,18 @@
 """The core Anglian Water module."""
 
+import logging
+
 from typing import Callable
 from datetime import timedelta, datetime as dt
 
 from .api import API
 from .auth import MSOB2CAuth
 from .enum import UsagesReadGranularity
-from .exceptions import SmartMeterUnavailableError
+from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
 from .meter import SmartMeter
 from .utils import is_awaitable
 
+_LOGGER = logging.getLogger(__name__)
 
 class AnglianWater:
     """Anglian Water"""
@@ -68,14 +71,31 @@ class AnglianWater:
             account_number=account_number,
             GRANULARITY=str(interval),
         )
-        _costs = await self.api.send_request(
-            endpoint="get_usage_costs",
-            body=None,
-            account_number=account_number,
-            GRANULARITY=str(interval),
-            START=start.isoformat(),
-            END=(start + timedelta(days=1)).isoformat(),
-        )
+        try:
+            _costs = await self.api.send_request(
+                endpoint="get_usage_costs",
+                body=None,
+                account_number=account_number,
+                GRANULARITY=str(interval),
+                START=start.isoformat(),
+                END=(start + timedelta(days=1)).isoformat(),
+            )
+        except UnknownEndpointError as exc:
+            if exc.status != 500:
+                raise
+
+            _costs = {}
+            _LOGGER.warning(
+                "Usage costs not available for account %s due to API error - %s",
+                account_number,
+                start,
+            )
+            _LOGGER.debug(
+                "Usage costs not available for account %s - %s (%s)",
+                account_number,
+                start,
+                exc.response,
+            )
         return await self.parse_usages(_response, _costs, update_cache)
 
     async def validate_smart_meter(self, account_number: str):
