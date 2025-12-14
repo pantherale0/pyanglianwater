@@ -81,21 +81,21 @@ class AnglianWater:
                 END=(start + timedelta(days=1)).isoformat(),
             )
         except UnknownEndpointError as exc:
-            if exc.status == 500:
-                _costs = {}
-                _LOGGER.warning(
-                    "Usage costs not available for account %s due to API error - %s",
-                    account_number,
-                    start
-                )
-                _LOGGER.debug(
-                    "Usage costs not available for account %s - %s (%s)",
-                    account_number,
-                    start,
-                    exc.response
-                )
-            else:
-                raise exc
+            if exc.status != 500:
+                raise
+
+            _costs = {}
+            _LOGGER.warning(
+                "Usage costs not available for account %s due to API error - %s",
+                account_number,
+                start,
+            )
+            _LOGGER.debug(
+                "Usage costs not available for account %s - %s (%s)",
+                account_number,
+                start,
+                exc.response,
+            )
         return await self.parse_usages(_response, _costs, update_cache)
 
     async def validate_smart_meter(self, account_number: str):
