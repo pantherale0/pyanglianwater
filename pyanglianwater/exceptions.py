@@ -4,8 +4,14 @@
 class AuthError(Exception):
     """General authentication error."""
 
+class HttpException(Exception):
+    """General HTTP error storing status and response."""
+    def __init__(self, status: int, response: str):
+        self.status = status
+        self.response = response
+        super().__init__(f"HTTP {status}: {response}")
 
-class UnknownEndpointError(Exception):
+class UnknownEndpointError(HttpException):
     """Defines an unknown error."""
 
 

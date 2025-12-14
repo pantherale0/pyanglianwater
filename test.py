@@ -37,6 +37,7 @@ async def main():
 
     water = AnglianWater(authenticator)
     accounts = await water.api.get_associated_accounts()
+    _LOGGER.debug(accounts)
     for acct in accounts["result"]["active"]:
         await water.update(str(acct["account_number"]))
 
