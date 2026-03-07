@@ -61,7 +61,7 @@ class MSOB2CAuth:
         self._refresh_token = refresh_token
 
     @property
-    def business_partner_number(self) -> str:
+    def business_partner_number(self) -> str | None:
         """Return business partner number."""
         if self.auth_data is None:
             return None
