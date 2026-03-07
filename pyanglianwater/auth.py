@@ -25,6 +25,7 @@ from .exceptions import (
     UnknownEndpointError,
     InvalidAccountIdError,
     SelfAssertedError,
+    TokenRequestError
 )
 from .utils import (
     random_string,
@@ -60,8 +61,10 @@ class MSOB2CAuth:
         self._refresh_token = refresh_token
 
     @property
-    def business_partner_number(self) -> str:
+    def business_partner_number(self) -> str | None:
         """Return business partner number."""
+        if self.auth_data is None:
+            return None
         return self.auth_data.get("extension_business_partner_number", "")
 
     @property
@@ -271,7 +274,7 @@ class MSOB2CAuth:
                 token_request_response.status,
                 text,
             )
-            return None
+            raise TokenRequestError
 
         try:
             token_data = await token_request_response.json()
