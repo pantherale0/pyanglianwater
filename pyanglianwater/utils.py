@@ -178,7 +178,7 @@ def decode_jwt(token: str) -> dict:
 
 ### DATE FUNCTIONS ###
 
-def parse_iso_datetime(iso_str: str) -> datetime:
+def parse_iso_datetime(iso_str: str) -> datetime | None:
     """
     Parse a datetime string into a timezone-aware datetime object.
     

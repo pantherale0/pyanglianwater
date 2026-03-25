@@ -34,7 +34,7 @@ class SmartMeter:
         yesterday = datetime.now() - timedelta(days=1)
         output = []
         for reading in self.readings:
-            if parse_iso_datetime(reading["read_at"]).date() == yesterday.date():
+            if (dt := parse_iso_datetime(reading["read_at"])) and dt.date() == yesterday.date():
                 output.append(reading)
         return output
 
