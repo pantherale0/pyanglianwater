@@ -8,6 +8,9 @@ import urllib.parse
 import logging
 import inspect
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding as sym_padding
@@ -171,3 +174,23 @@ def decode_jwt(token: str) -> dict:
     except jwt.DecodeError as e:
         _LOGGER.error("Failed to decode JWT: %s", e)
         return {}
+
+
+### DATE FUNCTIONS ###
+
+def parse_iso_datetime(iso_str: str) -> datetime:
+    """
+    Parse a datetime string into a timezone-aware datetime object.
+    
+    Anglian Water does not always return timezone-aware datetimes, so
+    we will assume that all datetimes are in London timezone.
+    This function will parse the datetime string and return a timezone-aware datetime object.
+    """
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("Europe/London"))
+        return dt
+    except ValueError as e:
+        _LOGGER.error("Failed to parse datetime string: %s", e)
+        return None

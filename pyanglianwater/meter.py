@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from .utils import parse_iso_datetime
 
 class SmartMeter:
     """
@@ -33,7 +34,7 @@ class SmartMeter:
         yesterday = datetime.now() - timedelta(days=1)
         output = []
         for reading in self.readings:
-            if datetime.fromisoformat(reading["read_at"]).date() == yesterday.date():
+            if parse_iso_datetime(reading["read_at"]).date() == yesterday.date():
                 output.append(reading)
         return output
 
@@ -64,7 +65,7 @@ class SmartMeter:
         """Returns the last updated time for the smart meter."""
         if len(self.readings) == 0:
             return None
-        return datetime.fromisoformat(self.readings[-1]["read_at"])
+        return parse_iso_datetime(self.readings[-1]["read_at"])
 
     def to_dict(self) -> dict:
         """Returns the SmartMeter object data as a dictionary."""
