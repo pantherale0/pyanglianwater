@@ -120,7 +120,7 @@ class AnglianWater:
             body=None,
             account_number=account_number,
         )
-        result = _response.get("result", _response)
+        result = _response.get("result", _response) if isinstance(_response, dict) else _response
         self.billing = BillingSummary(result)
         return self.billing
 
