@@ -126,8 +126,8 @@ class AnglianWater:
         if self._first_update:
             await self.validate_smart_meter(account_number)
             self._first_update = False
-        await self.get_usages(account_number)
         await self.get_comparison(account_number)
+        await self.get_usages(account_number)
 
     def to_dict(self) -> dict:
         """Returns the AnglianWater object data as a dictionary."""
