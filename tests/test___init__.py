@@ -166,7 +166,7 @@ async def test_get_comparison(anglian_water):  # pylint: disable=redefined-outer
 
     assert isinstance(result, UsageComparison)
     assert anglian_water.comparison is result
-    assert result.account_number == 171260490
+    assert result.account_number == "171260490"
     assert result.month == "March"
     assert result.previous_month == "February"
     assert result.average_daily_consumption_change_percentage == 2
