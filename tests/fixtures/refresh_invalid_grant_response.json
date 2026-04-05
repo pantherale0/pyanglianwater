@@ -1,0 +1,4 @@
+{
+  "error": "invalid_grant",
+  "error_description": "AADB2C90080: The provided grant has expired. Please re-authenticate and try again. Current time: 1775372773, Grant issued time: 1764860108, Grant expiration time: 1772636108\r\nCorrelation ID: bb63cf23-f4cd-42ad-9380-0af0a092bf2b\r\nTimestamp: 2026-04-05 07:06:13Z\r\n"
+}

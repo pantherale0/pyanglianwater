@@ -1,11 +1,12 @@
+import json
 import pytest
 import aiohttp
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 from datetime import datetime, timedelta
 from pyanglianwater.auth import MSOB2CAuth
 
 from pyanglianwater.exceptions import (
-    ExpiredAccessTokenError,
     InvalidAccountIdError,
     InvalidGrantError,
     InvalidRequestError,
@@ -26,6 +27,15 @@ async def auth_instance():
     """Fixture to create an instance of MSOB2CAuth."""
     async with aiohttp.ClientSession() as session:
         return MSOB2CAuth(username="testuser", password="testpassword", session=session)
+
+
+@pytest.fixture
+def refresh_invalid_grant_response_text():
+    """Sample refresh-token invalid_grant API payload as raw response text."""
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "refresh_invalid_grant_response.json"
+    )
+    return fixture_path.read_text(encoding="utf-8")
 
 @pytest.mark.asyncio
 async def test_initial_auth_data(auth_instance):
@@ -148,13 +158,11 @@ async def test_send_request_unknown_endpoint(auth_instance):
 def test_raise_mapped_token_error_oauth_codes(error_code, expected_exception):
     """Mapped OAuth errors should raise their specific custom exception."""
     auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    response_text = json.dumps(
+        {"error": error_code, "error_description": f"test-message-for-{error_code}"}
+    )
     with pytest.raises(expected_exception):
-        auth._raise_mapped_token_error(
-            error_code=error_code,
-            error_message=f"test-message-for-{error_code}",
-            error_codes=None,
-            status=400,
-        )
+        auth._raise_mapped_token_error(status=400, response_text=response_text)
 
 
 @pytest.mark.parametrize(
@@ -174,23 +182,36 @@ def test_raise_mapped_token_error_entra_hints(
 ):
     """Known Entra/B2C hints should map to specific custom exceptions."""
     auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    response_text = json.dumps(
+        {
+            "error": "unknown_error",
+            "error_description": error_message,
+            "error_codes": error_codes or [],
+        }
+    )
     with pytest.raises(expected_exception):
-        auth._raise_mapped_token_error(
-            error_code="unknown_error",
-            error_message=error_message,
-            error_codes=error_codes,
-            status=400,
-        )
+        auth._raise_mapped_token_error(status=400, response_text=response_text)
 
 
-@pytest.mark.parametrize("status", [400, 401, 403])
+@pytest.mark.parametrize("status", [400, 401, 403, 500, 503])
 def test_raise_mapped_token_error_falls_back_to_token_request_error(status):
-    """Unknown client-side token failures should fall back to TokenRequestError."""
+    """Unknown token failures at any non-200 status should fall back to TokenRequestError."""
     auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
     with pytest.raises(TokenRequestError):
         auth._raise_mapped_token_error(
-            error_code="unknown_error",
-            error_message="unexpected token endpoint failure",
-            error_codes=None,
             status=status,
+            response_text="unexpected token endpoint failure",
         )
+
+
+def test_raise_mapped_token_error_real_invalid_grant_refresh_fixture(
+    refresh_invalid_grant_response_text,
+):
+    """Real-world invalid_grant refresh payload should map to InvalidGrantError."""
+    auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    with pytest.raises(InvalidGrantError) as exc:
+        auth._raise_mapped_token_error(
+            status=400,
+            response_text=refresh_invalid_grant_response_text,
+        )
+    assert "AADB2C90080" in str(exc.value)

@@ -265,30 +265,10 @@ class MSOB2CAuth:
 
         if token_request_response.status != 200:
             text = await token_request_response.text()
-            # Attempt to parse JSON error response for more detailed logging
-            try:
-                error_data = json.loads(text)
-                error_code = error_data.get("error", "Unknown")
-                error_message = error_data.get("error_description") or text
-                error_codes = error_data.get("error_codes")
-            except json.JSONDecodeError:
-                error_message = text
-                error_code = "Unknown"
-                error_codes = None
-
             self._raise_mapped_token_error(
-                error_code=error_code,
-                error_message=error_message,
-                error_codes=error_codes,
                 status=token_request_response.status,
+                response_text=text,
             )
-
-            _LOGGER.error(
-                "B2C Auth: Token request failed %s: %s",
-                token_request_response.status,
-                text,
-            )
-            return None
 
         try:
             token_data = await token_request_response.json()
@@ -323,29 +303,10 @@ class MSOB2CAuth:
 
         if token_request_response.status != 200:
             text = await token_request_response.text()
-            try:
-                error_data = json.loads(text)
-                error_code = error_data.get("error", "Unknown")
-                error_message = error_data.get("error_description") or text
-                error_codes = error_data.get("error_codes")
-            except json.JSONDecodeError:
-                error_message = text
-                error_code = "Unknown"
-                error_codes = None
-
             self._raise_mapped_token_error(
-                error_code=error_code,
-                error_message=error_message,
-                error_codes=error_codes,
                 status=token_request_response.status,
+                response_text=text,
             )
-
-            _LOGGER.error(
-                "B2C Auth: Refresh token request failed %s: %s",
-                token_request_response.status,
-                text,
-            )
-            raise TokenRequestError
 
         try:
             token_data = await token_request_response.json()
@@ -363,12 +324,20 @@ class MSOB2CAuth:
 
     def _raise_mapped_token_error(
         self,
-        error_code: str,
-        error_message: str,
-        error_codes: list | None,
         status: int,
+        response_text: str,
     ) -> None:
         """Raise a mapped exception for known OAuth/Entra/B2C token errors."""
+        try:
+            error_data = json.loads(response_text)
+            error_code = error_data.get("error", "Unknown")
+            error_message = error_data.get("error_description") or response_text
+            error_codes = error_data.get("error_codes")
+        except json.JSONDecodeError:
+            error_code = "Unknown"
+            error_message = response_text
+            error_codes = None
+
         normalized_error_code = str(error_code or "").lower()
         exception_class = OAUTH_ERROR_EXCEPTION_MAP.get(normalized_error_code)
         if exception_class is not None:
@@ -394,7 +363,12 @@ class MSOB2CAuth:
                 )
                 raise mapped_exception(error_message)
 
-        if status in {400, 401, 403}:
+        if status != 200:
+            _LOGGER.error(
+                "B2C Auth: Token request failed %s: %s",
+                status,
+                response_text,
+            )
             raise TokenRequestError(error_message)
 
     async def send_login_request(self):
