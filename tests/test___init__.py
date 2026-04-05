@@ -108,6 +108,19 @@ async def test_update(anglian_water):  # pylint: disable=redefined-outer-name
                 }
             },
             {},
+            {
+                "result": {
+                    "account_number": 12345,
+                    "month": "March",
+                    "previous_month": "February",
+                    "average_daily_consumption_change_percentage": 2,
+                    "total_usage": 5206,
+                    "average_daily_usage": 168,
+                    "sector_comparison": "NR17",
+                    "efficient_home_usage": 4198,
+                    "median_usage": 6652,
+                }
+            },
         ]
     )
     await anglian_water.update(account_number=account_number)
