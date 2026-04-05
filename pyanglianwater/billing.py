@@ -82,7 +82,7 @@ class BillingSummary:
 
     def __init__(self, data: dict):
         """Initialise BillingSummary from a parsed dict."""
-        self.account_balance: float = float(data.get("account_balance", 0.0))
+        self.account_balance: float = float(data.get("account_balance") or 0.0)
         self.balance_due_date: datetime | None = (
             parse_iso_datetime(data["balance_due_date"]) if data.get("balance_due_date") else None
         )
