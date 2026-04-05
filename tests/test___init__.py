@@ -8,6 +8,7 @@ from pyanglianwater import (
     AnglianWater,
     API,
     SmartMeter,
+    UsageComparison,
 )
 from pyanglianwater.auth import MSOB2CAuth
 
@@ -142,3 +143,59 @@ def test_remove_callback(anglian_water):  # pylint: disable=redefined-outer-name
     assert callback in anglian_water.updated_data_callbacks
     anglian_water.remove_callback(callback)
     assert callback not in anglian_water.updated_data_callbacks
+
+
+@pytest.mark.asyncio
+async def test_get_comparison(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_comparison parses the API response into a UsageComparison."""
+    sample_response = {
+        "result": {
+            "account_number": 171260490,
+            "month": "March",
+            "previous_month": "February",
+            "average_daily_consumption_change_percentage": 2,
+            "total_usage": 5206,
+            "average_daily_usage": 168,
+            "sector_comparison": "NR17",
+            "efficient_home_usage": 4198,
+            "median_usage": 6652,
+        }
+    }
+    anglian_water.api.send_request = AsyncMock(return_value=sample_response)
+    result = await anglian_water.get_comparison(account_number="12345")
+
+    assert isinstance(result, UsageComparison)
+    assert anglian_water.comparison is result
+    assert result.account_number == 171260490
+    assert result.month == "March"
+    assert result.previous_month == "February"
+    assert result.average_daily_consumption_change_percentage == 2
+    assert result.total_usage == 5206
+    assert result.average_daily_usage == 168
+    assert result.sector_comparison_postcode == "NR17"
+    assert result.efficient_home_usage == 4198
+    assert result.median_usage == 6652
+
+
+def test_to_dict_includes_comparison(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that to_dict includes comparison data when available."""
+    result = anglian_water.to_dict()
+    assert "comparison" in result
+    assert result["comparison"] is None
+
+    anglian_water.comparison = UsageComparison(
+        {
+            "account_number": 171260490,
+            "month": "March",
+            "previous_month": "February",
+            "average_daily_consumption_change_percentage": 2,
+            "total_usage": 5206,
+            "average_daily_usage": 168,
+            "sector_comparison": "NR17",
+            "efficient_home_usage": 4198,
+            "median_usage": 6652,
+        }
+    )
+    result = anglian_water.to_dict()
+    assert result["comparison"]["month"] == "March"
+    assert result["comparison"]["sector_comparison_postcode"] == "NR17"

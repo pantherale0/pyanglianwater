@@ -9,7 +9,7 @@ from .api import API
 from .auth import MSOB2CAuth
 from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
-from .meter import SmartMeter
+from .meter import SmartMeter, UsageComparison
 from .utils import is_awaitable
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ class AnglianWater:
         self.api = API(authenticator)
         self.meters: dict[str, SmartMeter] = {}
         self.account_config: dict = {}
+        self.comparison: UsageComparison | None = None
         self.updated_data_callbacks: list[Callable] = []
         self._first_update = True
 
@@ -99,6 +100,17 @@ class AnglianWater:
             )
         return await self.parse_usages(_response, _costs, update_cache)
 
+    async def get_comparison(self, account_number: str) -> UsageComparison:
+        """Get usage comparison data."""
+        _response = await self.api.send_request(
+            endpoint="get_comparison",
+            body=None,
+            account_number=account_number,
+        )
+        result = _response.get("result", _response)
+        self.comparison = UsageComparison(result)
+        return self.comparison
+
     async def validate_smart_meter(self, account_number: str):
         """Validates the account has a smart meter."""
         self.account_config = await self.api.send_request(
@@ -115,6 +127,7 @@ class AnglianWater:
             await self.validate_smart_meter(account_number)
             self._first_update = False
         await self.get_usages(account_number)
+        await self.get_comparison(account_number)
 
     def to_dict(self) -> dict:
         """Returns the AnglianWater object data as a dictionary."""
@@ -123,6 +136,7 @@ class AnglianWater:
             "meters": {k: v.to_dict() for k, v in self.meters.items()},
             "current_tariff": self.current_tariff,
             "account_config": self.account_config,
+            "comparison": self.comparison.to_dict() if self.comparison else None,
         }
 
     def __iter__(self):
