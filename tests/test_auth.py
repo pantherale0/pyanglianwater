@@ -24,6 +24,7 @@ from pyanglianwater.exceptions import (
     UnknownEndpointError,
 )
 
+
 @pytest.fixture
 async def auth_instance():
     """Fixture to create an instance of MSOB2CAuth."""
@@ -39,63 +40,102 @@ def refresh_invalid_grant_response_text():
     )
     return fixture_path.read_text(encoding="utf-8")
 
+
 @pytest.mark.asyncio
 async def test_initial_auth_data(auth_instance):
     """Test the _get_initial_auth_data method."""
-    with patch("pyanglianwater.auth.aiohttp.ClientSession.get", new_callable=AsyncMock) as mock_get:
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.get", new_callable=AsyncMock
+    ) as mock_get:
         mock_get.return_value.ok = True
         mock_get.return_value.status = 302
         mock_get.return_value.headers = {"Location": "https://example.com"}
         location = await auth_instance._get_initial_auth_data()
         assert location == "https://example.com"
 
+
 @pytest.mark.asyncio
 async def test_submit_self_asserted_form(auth_instance):
     """Test the _submit_self_asserted_form method."""
-    with patch("pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock) as mock_post:
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock
+    ) as mock_post:
         mock_post.return_value.status = 200
         mock_post.return_value.json = AsyncMock(return_value={"status": 200})
         response = await auth_instance._submit_self_asserted_form("test_trans_id")
         assert response is not None
 
+
 @pytest.mark.asyncio
 async def test_get_confirmation_redirect(auth_instance):
     """Test the _get_confirmation_redirect method."""
-    with patch("pyanglianwater.auth.aiohttp.ClientSession.get", new_callable=AsyncMock) as mock_get:
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.get", new_callable=AsyncMock
+    ) as mock_get:
         mock_get.return_value.status = 302
         mock_get.return_value.headers = {"Location": "https://example.com"}
         location = await auth_instance._get_confirmation_redirect()
         assert location == "https://example.com"
 
+
 @pytest.mark.asyncio
 async def test_get_token(auth_instance):
     """Test the _get_token method."""
-    with patch("pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock) as mock_post:
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock
+    ) as mock_post:
         mock_post.return_value.status = 200
-        mock_post.return_value.json = AsyncMock(return_value={"access_token": "test_token"})
+        mock_post.return_value.json = AsyncMock(
+            return_value={"access_token": "test_token"}
+        )
         token_data = await auth_instance._get_token("test_code")
         assert token_data["access_token"] == "test_token"
+
 
 @pytest.mark.asyncio
 async def test_send_refresh_request(auth_instance):
     """Test the send_refresh_request method."""
     auth_instance.auth_data = {"access_token": "test_token", "expires_in": 3600}
     auth_instance.next_refresh = datetime.now() - timedelta(seconds=1)
-    with patch("pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock) as mock_post:
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock
+    ) as mock_post:
         mock_post.return_value.status = 200
-        mock_post.return_value.json = AsyncMock(return_value={"access_token": "new_token", "expires_in": 3600})
+        mock_post.return_value.json = AsyncMock(
+            return_value={"access_token": "new_token", "expires_in": 3600}
+        )
         await auth_instance.send_refresh_request()
         assert auth_instance.access_token == "new_token"
+
 
 @pytest.mark.asyncio
 async def test_send_login_request(auth_instance):
     """Test the send_login_request method."""
-    with patch.object(auth_instance, "_get_initial_auth_data", AsyncMock(return_value=("csrf_token", "trans_id"))), \
-         patch.object(auth_instance, "_submit_self_asserted_form", AsyncMock(return_value=True)), \
-         patch.object(auth_instance, "_get_confirmation_redirect", AsyncMock(return_value="uk.co.anglianwater.myaccount://?code=test_code&state=test_state")), \
-         patch.object(auth_instance, "_get_token", AsyncMock(return_value={"access_token": "test_token", "expires_in": 3600})):
+    with (
+        patch.object(
+            auth_instance,
+            "_get_initial_auth_data",
+            AsyncMock(return_value=("csrf_token", "trans_id")),
+        ),
+        patch.object(
+            auth_instance, "_submit_self_asserted_form", AsyncMock(return_value=True)
+        ),
+        patch.object(
+            auth_instance,
+            "_get_confirmation_redirect",
+            AsyncMock(
+                return_value="uk.co.anglianwater.myaccount://?code=test_code&state=test_state"
+            ),
+        ),
+        patch.object(
+            auth_instance,
+            "_get_token",
+            AsyncMock(return_value={"access_token": "test_token", "expires_in": 3600}),
+        ),
+    ):
         await auth_instance.send_login_request()
         assert auth_instance.access_token == "test_token"
+
 
 @pytest.mark.asyncio
 async def test_send_request(auth_instance):
@@ -107,13 +147,16 @@ async def test_send_request(auth_instance):
         mock_response.ok = True
         mock_response.content_type = "application/json"
         mock_response.json = AsyncMock(return_value={"data": "test_data"})
-        
+
         with patch.object(auth_instance._auth_session, "request") as mock_request:
             mock_request.return_value.__aenter__.return_value = mock_response
             mock_request.return_value.__aexit__.return_value = AsyncMock()
-            
-            response = await auth_instance.send_request("GET", "https://example.com/api", None, {})
+
+            response = await auth_instance.send_request(
+                "GET", "https://example.com/api", None, {}
+            )
             assert response["data"] == "test_data"
+
 
 @pytest.mark.asyncio
 async def test_send_request_expired_token(auth_instance):
@@ -122,6 +165,7 @@ async def test_send_request_expired_token(auth_instance):
     with patch.object(auth_instance, "send_refresh_request", AsyncMock()):
         with pytest.raises(ExpiredAccessTokenError):
             await auth_instance.send_request("GET", "https://example.com/api", None, {})
+
 
 @pytest.mark.asyncio
 async def test_send_request_invalid_account(auth_instance):
@@ -132,14 +176,17 @@ async def test_send_request_invalid_account(auth_instance):
         mock_response = AsyncMock()
         mock_response.status = 403
         mock_response.ok = False
-        
+
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
         mock_cm.__aexit__.return_value = None
-        
+
         with patch.object(auth_instance._auth_session, "request", return_value=mock_cm):
             with pytest.raises(InvalidAccountIdError):
-                await auth_instance.send_request("GET", "https://example.com/api", None, {})
+                await auth_instance.send_request(
+                    "GET", "https://example.com/api", None, {}
+                )
+
 
 @pytest.mark.asyncio
 async def test_send_request_unknown_endpoint(auth_instance):
@@ -151,14 +198,16 @@ async def test_send_request_unknown_endpoint(auth_instance):
         mock_response.status = 500
         mock_response.ok = False
         mock_response.text = AsyncMock(return_value="Server Error")
-        
+
         mock_cm = AsyncMock()
         mock_cm.__aenter__.return_value = mock_response
         mock_cm.__aexit__.return_value = None
-        
+
         with patch.object(auth_instance._auth_session, "request", return_value=mock_cm):
             with pytest.raises(UnknownEndpointError):
-                await auth_instance.send_request("GET", "https://example.com/api", None, {})
+                await auth_instance.send_request(
+                    "GET", "https://example.com/api", None, {}
+                )
 
 
 @pytest.mark.parametrize(

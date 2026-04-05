@@ -1,15 +1,24 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from pyanglianwater import AnglianWater, API, BaseAuth, SmartMeter, TariffNotAvailableError
+from pyanglianwater import (
+    AnglianWater,
+    API,
+    BaseAuth,
+    SmartMeter,
+    TariffNotAvailableError,
+)
 from pyanglianwater.enum import UsagesReadGranularity
+
 
 @pytest.fixture
 def mock_api():
     return AsyncMock(spec=API)
 
+
 @pytest.fixture
 def anglian_water(mock_api):
     return AnglianWater(api=mock_api)
+
 
 def test_initialization(anglian_water, mock_api):
     assert anglian_water.api == mock_api
@@ -20,6 +29,7 @@ def test_initialization(anglian_water, mock_api):
     assert anglian_water.current_tariff_service is None
     assert anglian_water.updated_data_callbacks == []
 
+
 @pytest.mark.asyncio
 async def test_parse_usages(anglian_water):
     mock_response = {
@@ -27,10 +37,12 @@ async def test_parse_usages(anglian_water):
             "records": [
                 {
                     "meters": [
-                        {"meter_serial_number": "12345",
-                         "read": 100.0,
-                         "consumption": 10.0,
-                         "read_at": "2023-10-01T00:00:00Z",}
+                        {
+                            "meter_serial_number": "12345",
+                            "read": 100.0,
+                            "consumption": 10.0,
+                            "read_at": "2023-10-01T00:00:00Z",
+                        }
                     ]
                 }
             ]
@@ -41,6 +53,7 @@ async def test_parse_usages(anglian_water):
     assert "12345" in anglian_water.meters
     assert isinstance(anglian_water.meters["12345"], SmartMeter)
 
+
 @pytest.mark.asyncio
 async def test_get_usages(anglian_water):
     anglian_water.api.send_request.return_value = {
@@ -48,10 +61,12 @@ async def test_get_usages(anglian_water):
             "records": [
                 {
                     "meters": [
-                        {"meter_serial_number": "12345",
-                         "read": 100.0,
-                         "consumption": 10.0,
-                         "read_at": "2023-10-01T00:00:00Z",}
+                        {
+                            "meter_serial_number": "12345",
+                            "read": 100.0,
+                            "consumption": 10.0,
+                            "read_at": "2023-10-01T00:00:00Z",
+                        }
                     ]
                 }
             ]
@@ -61,18 +76,23 @@ async def test_get_usages(anglian_water):
     assert "12345" in anglian_water.meters
     assert isinstance(result, dict)
 
+
 @pytest.mark.asyncio
 async def test_update(anglian_water):
     anglian_water.get_usages = AsyncMock()
     await anglian_water.update()
     anglian_water.get_usages.assert_called_once()
 
+
 def test_to_dict(anglian_water):
     anglian_water.api.to_dict = MagicMock(return_value={"key": "value"})
-    anglian_water.meters = {"12345": MagicMock(to_dict=MagicMock(return_value={"meter_key": "meter_value"}))}
+    anglian_water.meters = {
+        "12345": MagicMock(to_dict=MagicMock(return_value={"meter_key": "meter_value"}))
+    }
     result = anglian_water.to_dict()
     assert result["api"] == {"key": "value"}
     assert result["meters"]["12345"] == {"meter_key": "meter_value"}
+
 
 def test_register_callback(anglian_water):
     callback = MagicMock()
@@ -81,6 +101,7 @@ def test_register_callback(anglian_water):
 
     with pytest.raises(ValueError):
         anglian_water.register_callback("not_callable")
+
 
 @pytest.mark.asyncio
 async def test_create_from_authenticator():
@@ -94,7 +115,7 @@ async def test_create_from_authenticator():
         area="Anglian",
         tariff="Standard",
         custom_rate=1.5,
-        custom_service=2.0
+        custom_service=2.0,
     )
     assert anglian_water.current_tariff_area == "Anglian"
     assert anglian_water.current_tariff == "Standard"
@@ -103,6 +124,5 @@ async def test_create_from_authenticator():
 
     with pytest.raises(TariffNotAvailableError):
         await AnglianWater.create_from_authenticator(
-            authenticator=mock_authenticator,
-            area="invalid_area"
+            authenticator=mock_authenticator, area="invalid_area"
         )

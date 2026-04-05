@@ -11,6 +11,7 @@ from pyanglianwater.utils import (
     decode_jwt,
 )
 
+
 def test_is_awaitable():
     async def async_func():
         pass
@@ -21,10 +22,12 @@ def test_is_awaitable():
     assert is_awaitable(async_func) is True
     assert is_awaitable(sync_func) is False
 
+
 def test_random_string():
     result = random_string(5, 10)
     assert 5 <= len(result) <= 10
     assert all(c.isalnum() or c in "-_" for c in result)
+
 
 def test_build_code_challenge():
     code_verifier = "test_verifier"
@@ -32,11 +35,13 @@ def test_build_code_challenge():
     assert isinstance(challenge, str)
     assert len(challenge) > 0
 
+
 def test_hash_data():
     data = "test_data"
     hashed = hash_data(data)
     assert isinstance(hashed, str)
     assert len(hashed) > 0
+
 
 def test_decode_oauth_redirect():
     url = "https://example.com/callback?state=test_state&code=test_code"
@@ -48,6 +53,7 @@ def test_decode_oauth_redirect():
     result = decode_oauth_redirect(invalid_url)
     assert result is None
 
+
 def test_encrypt_string_to_charcode_hex():
     plaintext = "test_string"
     encrypted = encrypt_string_to_charcode_hex(plaintext)
@@ -56,6 +62,7 @@ def test_encrypt_string_to_charcode_hex():
 
     with pytest.raises(TypeError):
         encrypt_string_to_charcode_hex(12345)
+
 
 def test_decode_jwt():
     token = jwt.encode({"key": "value"}, "secret", algorithm="HS256")

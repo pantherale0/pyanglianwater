@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from .utils import parse_iso_datetime
 
+
 class SmartMeter:
     """
     A class to represent a smart water meter.
@@ -34,7 +35,9 @@ class SmartMeter:
         yesterday = datetime.now() - timedelta(days=1)
         output = []
         for reading in self.readings:
-            if (dt := parse_iso_datetime(reading["read_at"])) and dt.date() == yesterday.date():
+            if (
+                dt := parse_iso_datetime(reading["read_at"])
+            ) and dt.date() == yesterday.date():
                 output.append(reading)
         return output
 

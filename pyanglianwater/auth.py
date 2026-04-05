@@ -36,7 +36,7 @@ from .exceptions import (
     ConsentRequiredError,
     TemporarilyUnavailableError,
     SelfAssertedError,
-    TokenRequestError
+    TokenRequestError,
 )
 from .utils import (
     random_string,
