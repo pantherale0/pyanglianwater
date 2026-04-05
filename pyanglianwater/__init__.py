@@ -14,6 +14,7 @@ from .utils import is_awaitable
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class AnglianWater:
     """Anglian Water"""
 

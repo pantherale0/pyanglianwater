@@ -25,7 +25,7 @@ async def main():
                 refresh_token=os.environ.get("AW_REFRESH_TOKEN", None),
                 session=aiohttp.ClientSession(
                     cookie_jar=aiohttp.CookieJar(quote_cookie=False)
-                )
+                ),
             )
             await authenticator.send_login_request()
             _LOGGER.debug("Logged in. Ready..")
@@ -49,11 +49,12 @@ async def main():
             _LOGGER.debug(">> Latest consumption %s", m.latest_consumption)
         await asyncio.sleep(30)
 
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())

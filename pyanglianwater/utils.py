@@ -178,10 +178,11 @@ def decode_jwt(token: str) -> dict:
 
 ### DATE FUNCTIONS ###
 
+
 def parse_iso_datetime(iso_str: str) -> datetime | None:
     """
     Parse a datetime string into a timezone-aware datetime object.
-    
+
     Anglian Water does not always return timezone-aware datetimes, so
     we will assume that all datetimes are in London timezone.
     This function will parse the datetime string and return a timezone-aware datetime object.
