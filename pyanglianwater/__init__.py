@@ -141,7 +141,10 @@ class AnglianWater:
             self._first_update = False
         await self.get_comparison(account_number)
         await self.get_usages(account_number)
-        await self.get_billing_summary(account_number)
+        try:
+            await self.get_billing_summary(account_number)
+        except Exception:
+            _LOGGER.warning("Failed to fetch billing summary for account %s", account_number)
 
     def to_dict(self) -> dict:
         """Returns the AnglianWater object data as a dictionary."""
