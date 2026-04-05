@@ -331,6 +331,8 @@ class MSOB2CAuth:
         """Raise a mapped exception for known OAuth/Entra/B2C token errors."""
         try:
             error_data = json.loads(response_text)
+            if not isinstance(error_data, dict):
+                error_data = {}
             error_code = error_data.get("error", "Unknown")
             error_message = error_data.get("error_description") or response_text
             error_codes = error_data.get("error_codes")
