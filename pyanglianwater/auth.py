@@ -321,6 +321,7 @@ class MSOB2CAuth:
             )
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
             _LOGGER.error("B2C Auth: Error processing refresh response: %s", e)
+            raise TokenRequestError(f"Error processing refresh response: {e}") from e
 
     def _raise_mapped_token_error(
         self,
