@@ -7,6 +7,7 @@ import pytest
 from pyanglianwater import (
     AnglianWater,
     API,
+    BillingSummary,
     SmartMeter,
     UsageComparison,
 )
@@ -121,6 +122,27 @@ async def test_update(anglian_water):  # pylint: disable=redefined-outer-name
                     "median_usage": 6652,
                 }
             },
+            {
+                "result": {
+                    "account_balance": -50.00,
+                    "balance_due_date": "2026-03-01T00:00:00Z",
+                    "next_payment_amount": 20.00,
+                    "next_payment_date": "2026-04-15T00:00:00Z",
+                    "next_bill_date": "2026-05-01T02:00:00Z",
+                    "balance_type": "Credit",
+                    "last_payment_date": "2026-03-15T00:00:00Z",
+                    "last_payment_amount": -20.00,
+                    "is_behind_with_payment": False,
+                    "is_direct_debit_claim_in_progress": False,
+                    "payment_arrangement": None,
+                    "overdue_amount": 0.00,
+                    "has_quotation_payment_scheme": False,
+                    "refund_amount": 0.00,
+                    "move_out_refund_threshold_amount": -299.0,
+                    "second_payment_amount": 0.00,
+                    "has_court_balance": False,
+                }
+            },
         ]
     )
     await anglian_water.update(account_number=account_number)
@@ -212,3 +234,110 @@ def test_to_dict_includes_comparison(anglian_water):  # pylint: disable=redefine
     result = anglian_water.to_dict()
     assert result["comparison"]["month"] == "March"
     assert result["comparison"]["sector_comparison_postcode"] == "NR17"
+
+
+_MOCK_BILLING_RESPONSE = {
+    "result": {
+        "account_balance": -50.00,
+        "balance_due_date": "2026-03-01T00:00:00Z",
+        "next_payment_amount": 20.00,
+        "next_payment_date": "2026-04-15T00:00:00Z",
+        "next_bill_date": "2026-05-01T02:00:00Z",
+        "balance_type": "Credit",
+        "last_payment_date": "2026-03-15T00:00:00Z",
+        "last_payment_amount": -20.00,
+        "is_behind_with_payment": False,
+        "is_direct_debit_claim_in_progress": False,
+        "payment_arrangement": {
+            "payment_type": "DirectDebit",
+            "end_term_balance": 100.00,
+            "payment_frequency": "Monthly",
+            "payment_day": 15,
+            "payment_amount": 20.00,
+            "are_request_lines_open": True,
+            "payment_reminder": False,
+            "bill_period_end_date": "2026-05-01T00:00:00Z",
+            "regular_payment_amount": 20.00,
+            "regular_payment_date": "2026-05-15T00:00:00Z",
+            "has_rejected_direct_debit": False,
+            "payment_scheme_type": "Measured",
+            "has_retained_payment": False,
+            "retainment_date": "2026-04-15T00:00:00Z",
+            "retainment_amount": 0.00,
+            "number_of_retained_payments": 0,
+            "has_pending_payment_plan_change": False,
+            "retained_payment_frequency": "Monthly",
+        },
+        "overdue_amount": 0.00,
+        "has_quotation_payment_scheme": False,
+        "refund_amount": 0.00,
+        "move_out_refund_threshold_amount": -299.0,
+        "second_payment_amount": 0.00,
+        "has_court_balance": False,
+    }
+}
+
+
+@pytest.mark.asyncio
+async def test_get_billing_summary(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_billing_summary parses the API response into a BillingSummary."""
+    anglian_water.api.send_request = AsyncMock(return_value=_MOCK_BILLING_RESPONSE)
+    result = await anglian_water.get_billing_summary(account_number="12345")
+
+    assert isinstance(result, BillingSummary)
+    assert anglian_water.billing is result
+    assert result.account_balance == -50.00
+    assert result.balance_type == "Credit"
+    assert result.next_payment_amount == 20.00
+    assert result.is_behind_with_payment is False
+    assert result.is_direct_debit_claim_in_progress is False
+    assert result.overdue_amount == 0.00
+    assert result.has_court_balance is False
+    assert result.payment_arrangement is not None
+    assert result.payment_arrangement.payment_type == "DirectDebit"
+    assert result.payment_arrangement.payment_frequency == "Monthly"
+    assert result.payment_arrangement.payment_day == 15
+    assert result.payment_arrangement.payment_amount == 20.00
+    assert result.payment_arrangement.payment_scheme_type == "Measured"
+    assert result.payment_arrangement.number_of_retained_payments == 0
+
+
+@pytest.mark.asyncio
+async def test_get_billing_summary_no_arrangement(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_billing_summary handles a missing payment_arrangement."""
+    response = {
+        "result": {
+            "account_balance": 0.00,
+            "balance_type": "Neutral",
+            "is_behind_with_payment": False,
+            "is_direct_debit_claim_in_progress": False,
+            "payment_arrangement": None,
+            "overdue_amount": 0.00,
+            "has_quotation_payment_scheme": False,
+            "refund_amount": 0.00,
+            "move_out_refund_threshold_amount": 0.00,
+            "second_payment_amount": 0.00,
+            "has_court_balance": False,
+        }
+    }
+    anglian_water.api.send_request = AsyncMock(return_value=response)
+    result = await anglian_water.get_billing_summary(account_number="12345")
+
+    assert isinstance(result, BillingSummary)
+    assert result.payment_arrangement is None
+    assert result.account_balance == 0.00
+
+
+def test_to_dict_includes_billing(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that to_dict includes billing data when available."""
+    result = anglian_water.to_dict()
+    assert "billing" in result
+    assert result["billing"] is None
+
+    from pyanglianwater.billing import BillingSummary as _BS
+
+    anglian_water.billing = _BS(_MOCK_BILLING_RESPONSE["result"])
+    result = anglian_water.to_dict()
+    assert result["billing"]["account_balance"] == -50.00
+    assert result["billing"]["balance_type"] == "Credit"
+    assert result["billing"]["payment_arrangement"]["payment_type"] == "DirectDebit"

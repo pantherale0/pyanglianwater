@@ -9,6 +9,7 @@ from .api import API
 from .auth import MSOB2CAuth
 from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
+from .billing import BillingSummary
 from .meter import SmartMeter, UsageComparison
 from .utils import is_awaitable
 
@@ -27,6 +28,7 @@ class AnglianWater:
         self.meters: dict[str, SmartMeter] = {}
         self.account_config: dict = {}
         self.comparison: UsageComparison | None = None
+        self.billing: BillingSummary | None = None
         self.updated_data_callbacks: list[Callable] = []
         self._first_update = True
 
@@ -111,6 +113,17 @@ class AnglianWater:
         self.comparison = UsageComparison(result)
         return self.comparison
 
+    async def get_billing_summary(self, account_number: str) -> BillingSummary:
+        """Get billing summary data."""
+        _response = await self.api.send_request(
+            endpoint="get_account_summary",
+            body=None,
+            account_number=account_number,
+        )
+        result = _response.get("result", _response)
+        self.billing = BillingSummary(result)
+        return self.billing
+
     async def validate_smart_meter(self, account_number: str):
         """Validates the account has a smart meter."""
         self.account_config = await self.api.send_request(
@@ -128,6 +141,7 @@ class AnglianWater:
             self._first_update = False
         await self.get_comparison(account_number)
         await self.get_usages(account_number)
+        await self.get_billing_summary(account_number)
 
     def to_dict(self) -> dict:
         """Returns the AnglianWater object data as a dictionary."""
@@ -137,6 +151,7 @@ class AnglianWater:
             "current_tariff": self.current_tariff,
             "account_config": self.account_config,
             "comparison": self.comparison.to_dict() if self.comparison else None,
+            "billing": self.billing.to_dict() if self.billing else None,
         }
 
     def __iter__(self):
