@@ -11,6 +11,7 @@ testpaths = [
     "tests"
 ]
 addopts = "-v -ra -q"
+asyncio_mode = "auto"
 log_cli = true
 log_cli_level = "INFO"
 minversion = "6.0"
