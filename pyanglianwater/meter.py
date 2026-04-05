@@ -5,6 +5,44 @@ from datetime import datetime, timedelta
 from .utils import parse_iso_datetime
 
 
+class UsageComparison:
+    """
+    A class to represent a usage comparison result.
+    """
+
+    def __init__(self, data: dict):
+        """Initialise UsageComparison from a parsed response dict."""
+        self.account_number: str | None = str(data["account_number"]) if data.get("account_number") is not None else None
+        self.month: str = data.get("month", "")
+        self.previous_month: str = data.get("previous_month", "")
+        self.average_daily_consumption_change_percentage: int | float = data.get(
+            "average_daily_consumption_change_percentage", 0
+        )
+        self.total_usage: int | float = data.get("total_usage", 0)
+        self.average_daily_usage: int | float = data.get("average_daily_usage", 0)
+        self.sector_comparison_postcode: str = data.get("sector_comparison", "")
+        self.efficient_home_usage: int | float = data.get("efficient_home_usage", 0)
+        self.median_usage: int | float = data.get("median_usage", 0)
+
+    def to_dict(self) -> dict:
+        """Returns the UsageComparison object data as a dictionary."""
+        return {
+            "account_number": self.account_number,
+            "month": self.month,
+            "previous_month": self.previous_month,
+            "average_daily_consumption_change_percentage": self.average_daily_consumption_change_percentage,
+            "total_usage": self.total_usage,
+            "average_daily_usage": self.average_daily_usage,
+            "sector_comparison_postcode": self.sector_comparison_postcode,
+            "efficient_home_usage": self.efficient_home_usage,
+            "median_usage": self.median_usage,
+        }
+
+    def __iter__(self):
+        """Allows the object to be converted to a dictionary using dict()."""
+        return iter(self.to_dict().items())
+
+
 class SmartMeter:
     """
     A class to represent a smart water meter.

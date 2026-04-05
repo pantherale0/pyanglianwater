@@ -28,6 +28,10 @@ AW_APP_ENDPOINTS = {
         "method": "GET",
         "endpoint": "/myaccount/v1/businesspartners/{BUSINESS_PARTNER_ID}/associatedaccounts",
     },
+    "get_comparison": {
+        "method": "GET",
+        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/usage/smartmeter/comparison",
+    },
 }
 AUTH_AW_BASE = "https://login.myaccount.anglianwater.co.uk"
 AUTH_MSO_BASE = (
