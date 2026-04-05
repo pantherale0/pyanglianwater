@@ -1,3 +1,5 @@
+"""Package setup for pyanglianwater."""
+
 import re
 
 import setuptools

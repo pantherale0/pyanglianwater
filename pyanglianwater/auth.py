@@ -382,11 +382,8 @@ class MSOB2CAuth:
             try:
                 await self.send_refresh_request()
                 return
-            except Exception as e:
-                _LOGGER.warning(
-                    "B2C Auth: Refresh token failed, falling back to initial login: %s",
-                    e,
-                )
+            except InvalidGrantError:
+                pass # Refresh token invalid/expired, fall back to full login flow
         auth_data = await self._get_initial_auth_data()
         if auth_data is None:
             return
