@@ -12,7 +12,7 @@ class UsageComparison:
 
     def __init__(self, data: dict):
         """Initialise UsageComparison from a parsed response dict."""
-        self.account_number: int | None = data.get("account_number")
+        self.account_number: str | None = str(data["account_number"]) if data.get("account_number") is not None else None
         self.month: str = data.get("month", "")
         self.previous_month: str = data.get("previous_month", "")
         self.average_daily_consumption_change_percentage: int | float = data.get(
