@@ -10,11 +10,11 @@ class PaymentArrangement:
 
     def __init__(self, data: dict):
         """Initialise PaymentArrangement from a parsed dict."""
-        self.payment_type: str = data.get("payment_type", "")
-        self.end_term_balance: float = float(data.get("end_term_balance", 0.0))
-        self.payment_frequency: str = data.get("payment_frequency", "")
-        self.payment_day: int = int(data.get("payment_day", 0))
-        self.payment_amount: float = float(data.get("payment_amount", 0.0))
+        self.payment_type: str = data.get("payment_type") or ""
+        self.end_term_balance: float = float(data.get("end_term_balance") or 0.0)
+        self.payment_frequency: str = data.get("payment_frequency") or ""
+        self.payment_day: int = int(data.get("payment_day") or 0)
+        self.payment_amount: float = float(data.get("payment_amount") or 0.0)
         self.are_request_lines_open: bool = bool(data.get("are_request_lines_open", False))
         self.payment_reminder: bool = bool(data.get("payment_reminder", False))
         self.bill_period_end_date: datetime | None = (
