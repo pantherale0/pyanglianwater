@@ -6,7 +6,19 @@ from pyanglianwater.auth import MSOB2CAuth
 
 from pyanglianwater.exceptions import (
     ExpiredAccessTokenError,
-    InvalidAccountIdError
+    InvalidAccountIdError,
+    InvalidGrantError,
+    InvalidRequestError,
+    InvalidClientError,
+    UnauthorizedClientError,
+    UnsupportedGrantTypeError,
+    InvalidScopeError,
+    AccessDeniedError,
+    InteractionRequiredError,
+    LoginRequiredError,
+    ConsentRequiredError,
+    TemporarilyUnavailableError,
+    TokenRequestError,
 )
 
 @pytest.fixture
@@ -115,3 +127,70 @@ async def test_send_request_unknown_endpoint(auth_instance):
         mock_request.return_value.text = AsyncMock(return_value="Server Error")
         with pytest.raises(ValueError):
             await auth_instance.send_request("test_endpoint", {"key": "value"})
+
+
+@pytest.mark.parametrize(
+    "error_code,expected_exception",
+    [
+        ("invalid_grant", InvalidGrantError),
+        ("invalid_request", InvalidRequestError),
+        ("invalid_client", InvalidClientError),
+        ("unauthorized_client", UnauthorizedClientError),
+        ("unsupported_grant_type", UnsupportedGrantTypeError),
+        ("invalid_scope", InvalidScopeError),
+        ("access_denied", AccessDeniedError),
+        ("interaction_required", InteractionRequiredError),
+        ("login_required", LoginRequiredError),
+        ("consent_required", ConsentRequiredError),
+        ("temporarily_unavailable", TemporarilyUnavailableError),
+    ],
+)
+def test_raise_mapped_token_error_oauth_codes(error_code, expected_exception):
+    """Mapped OAuth errors should raise their specific custom exception."""
+    auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    with pytest.raises(expected_exception):
+        auth._raise_mapped_token_error(
+            error_code=error_code,
+            error_message=f"test-message-for-{error_code}",
+            error_codes=None,
+            status=400,
+        )
+
+
+@pytest.mark.parametrize(
+    "error_message,error_codes,expected_exception",
+    [
+        ("AADSTS700082: Refresh token expired", None, InvalidGrantError),
+        ("AADSTS65001: Consent required", None, ConsentRequiredError),
+        ("AADSTS50076: MFA required", None, InteractionRequiredError),
+        ("AADSTS50079: MFA registration required", None, InteractionRequiredError),
+        ("AADB2C90091: User cancelled the flow", None, AccessDeniedError),
+        ("AADB2C90118: Password reset requested", None, InteractionRequiredError),
+        ("Generic message", [50076], InteractionRequiredError),
+    ],
+)
+def test_raise_mapped_token_error_entra_hints(
+    error_message, error_codes, expected_exception
+):
+    """Known Entra/B2C hints should map to specific custom exceptions."""
+    auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    with pytest.raises(expected_exception):
+        auth._raise_mapped_token_error(
+            error_code="unknown_error",
+            error_message=error_message,
+            error_codes=error_codes,
+            status=400,
+        )
+
+
+@pytest.mark.parametrize("status", [400, 401, 403])
+def test_raise_mapped_token_error_falls_back_to_token_request_error(status):
+    """Unknown client-side token failures should fall back to TokenRequestError."""
+    auth = MSOB2CAuth(username="testuser", password="testpassword", session=AsyncMock())
+    with pytest.raises(TokenRequestError):
+        auth._raise_mapped_token_error(
+            error_code="unknown_error",
+            error_message="unexpected token endpoint failure",
+            error_codes=None,
+            status=status,
+        )

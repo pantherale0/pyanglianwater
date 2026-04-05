@@ -19,6 +19,50 @@ class ExpiredAccessTokenError(AuthError):
     """401 Unauthorized"""
 
 
+class InvalidGrantError(AuthError):
+    """400 Grant expired error."""
+
+
+class InvalidRequestError(AuthError):
+    """OAuth request is malformed or missing required parameters."""
+
+
+class InvalidClientError(AuthError):
+    """Client authentication failed."""
+
+
+class UnauthorizedClientError(AuthError):
+    """Client is not authorized for this grant type or flow."""
+
+
+class UnsupportedGrantTypeError(AuthError):
+    """OAuth grant type is not supported."""
+
+
+class InvalidScopeError(AuthError):
+    """Requested OAuth scope is invalid, unknown, or malformed."""
+
+
+class AccessDeniedError(AuthError):
+    """Resource owner or policy denied the request."""
+
+
+class InteractionRequiredError(AuthError):
+    """Interactive user action is required to continue."""
+
+
+class LoginRequiredError(AuthError):
+    """User sign-in is required to continue."""
+
+
+class ConsentRequiredError(AuthError):
+    """User/admin consent is required to continue."""
+
+
+class TemporarilyUnavailableError(AuthError):
+    """Authorization server is temporarily unavailable."""
+
+
 class ServiceUnavailableError(Exception):
     """503 Service Unavailable."""
 

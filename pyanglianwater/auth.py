@@ -24,6 +24,17 @@ from .exceptions import (
     ExpiredAccessTokenError,
     UnknownEndpointError,
     InvalidAccountIdError,
+    InvalidGrantError,
+    InvalidRequestError,
+    InvalidClientError,
+    UnauthorizedClientError,
+    UnsupportedGrantTypeError,
+    InvalidScopeError,
+    AccessDeniedError,
+    InteractionRequiredError,
+    LoginRequiredError,
+    ConsentRequiredError,
+    TemporarilyUnavailableError,
     SelfAssertedError,
     TokenRequestError
 )
@@ -35,6 +46,31 @@ from .utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+OAUTH_ERROR_EXCEPTION_MAP = {
+    "invalid_grant": InvalidGrantError,
+    "invalid_request": InvalidRequestError,
+    "invalid_client": InvalidClientError,
+    "unauthorized_client": UnauthorizedClientError,
+    "unsupported_grant_type": UnsupportedGrantTypeError,
+    "invalid_scope": InvalidScopeError,
+    "access_denied": AccessDeniedError,
+    "interaction_required": InteractionRequiredError,
+    "login_required": LoginRequiredError,
+    "consent_required": ConsentRequiredError,
+    "temporarily_unavailable": TemporarilyUnavailableError,
+}
+
+# Frequently seen Entra/B2C sub-codes surfaced inside `error_description`
+ENTRA_ERROR_HINTS = {
+    "AADSTS700082": InvalidGrantError,  # Refresh token expired due to inactivity
+    "AADSTS65001": ConsentRequiredError,  # Consent required
+    "AADSTS50076": InteractionRequiredError,  # MFA required
+    "AADSTS50079": InteractionRequiredError,  # MFA registration required
+    "AADB2C90091": AccessDeniedError,  # User cancelled flow
+    "AADB2C90118": InteractionRequiredError,  # Password reset requested
+}
 
 
 class MSOB2CAuth:
@@ -229,6 +265,24 @@ class MSOB2CAuth:
 
         if token_request_response.status != 200:
             text = await token_request_response.text()
+            # Attempt to parse JSON error response for more detailed logging
+            try:
+                error_data = json.loads(text)
+                error_code = error_data.get("error", "Unknown")
+                error_message = error_data.get("error_description") or text
+                error_codes = error_data.get("error_codes")
+            except json.JSONDecodeError:
+                error_message = text
+                error_code = "Unknown"
+                error_codes = None
+
+            self._raise_mapped_token_error(
+                error_code=error_code,
+                error_message=error_message,
+                error_codes=error_codes,
+                status=token_request_response.status,
+            )
+
             _LOGGER.error(
                 "B2C Auth: Token request failed %s: %s",
                 token_request_response.status,
@@ -269,6 +323,23 @@ class MSOB2CAuth:
 
         if token_request_response.status != 200:
             text = await token_request_response.text()
+            try:
+                error_data = json.loads(text)
+                error_code = error_data.get("error", "Unknown")
+                error_message = error_data.get("error_description") or text
+                error_codes = error_data.get("error_codes")
+            except json.JSONDecodeError:
+                error_message = text
+                error_code = "Unknown"
+                error_codes = None
+
+            self._raise_mapped_token_error(
+                error_code=error_code,
+                error_message=error_message,
+                error_codes=error_codes,
+                status=token_request_response.status,
+            )
+
             _LOGGER.error(
                 "B2C Auth: Refresh token request failed %s: %s",
                 token_request_response.status,
@@ -289,6 +360,42 @@ class MSOB2CAuth:
             )
         except (aiohttp.ClientError, json.JSONDecodeError) as e:
             _LOGGER.error("B2C Auth: Error processing refresh response: %s", e)
+
+    def _raise_mapped_token_error(
+        self,
+        error_code: str,
+        error_message: str,
+        error_codes: list | None,
+        status: int,
+    ) -> None:
+        """Raise a mapped exception for known OAuth/Entra/B2C token errors."""
+        normalized_error_code = str(error_code or "").lower()
+        exception_class = OAUTH_ERROR_EXCEPTION_MAP.get(normalized_error_code)
+        if exception_class is not None:
+            _LOGGER.error(
+                "B2C Auth: OAuth token error (%s) during token request: %s",
+                normalized_error_code,
+                error_message,
+            )
+            raise exception_class(error_message)
+
+        normalized_error_codes = {str(code) for code in (error_codes or [])}
+        for entra_code, mapped_exception in ENTRA_ERROR_HINTS.items():
+            entra_numeric = entra_code.removeprefix("AADSTS").removeprefix("AADB2C")
+            if (
+                entra_code in error_message
+                or entra_code in normalized_error_codes
+                or entra_numeric in normalized_error_codes
+            ):
+                _LOGGER.error(
+                    "B2C Auth: Entra/B2C token error (%s) during token request: %s",
+                    entra_code,
+                    error_message,
+                )
+                raise mapped_exception(error_message)
+
+        if status in {400, 401, 403}:
+            raise TokenRequestError(error_message)
 
     async def send_login_request(self):
         """Send a request to MSO for Auth."""
