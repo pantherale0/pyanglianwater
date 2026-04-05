@@ -54,11 +54,6 @@ class AnglianWater:
                 self.meters[serial_number] = SmartMeter(serial_number=serial_number)
             if update_cache:
                 self.meters[serial_number].update_reading_cache(_response, _costs)
-        for callback in self.updated_data_callbacks:
-            if is_awaitable(callback):
-                await callback()
-            else:
-                callback()
         return _response
 
     async def get_usages(
@@ -141,10 +136,12 @@ class AnglianWater:
             self._first_update = False
         await self.get_comparison(account_number)
         await self.get_usages(account_number)
-        try:
-            await self.get_billing_summary(account_number)
-        except Exception:
-            _LOGGER.warning("Failed to fetch billing summary for account %s", account_number)
+        await self.get_billing_summary(account_number)
+        for callback in self.updated_data_callbacks:
+            if is_awaitable(callback):
+                await callback()
+            else:
+                callback()
 
     def to_dict(self) -> dict:
         """Returns the AnglianWater object data as a dictionary."""
