@@ -70,6 +70,7 @@ ENTRA_ERROR_HINTS = {
     "AADSTS50079": InteractionRequiredError,  # MFA registration required
     "AADB2C90091": AccessDeniedError,  # User cancelled flow
     "AADB2C90118": InteractionRequiredError,  # Password reset requested
+    "AADB2C90080": InvalidGrantError,  # Refresh token expired due to inactivity
 }
 
 
@@ -226,6 +227,13 @@ class MSOB2CAuth:
             AUTH_MSO_CONFIRM_URL.format(CSRF=self._csrf_token, STATE=self._state),
             allow_redirects=False,
         )
+
+        if confirm_login_response.status == 200:
+            text = await confirm_login_response.text()
+            terms_of_use_match = re.search(r'"ID":"extension_termsOfUseConsentChoice"', text)
+            is_req_match = re.search(r'"IS_REQ":true', text)
+            if terms_of_use_match and is_req_match:
+                raise ConsentRequiredError("Terms of use not accepted")
 
         if confirm_login_response.status != 302:
             text = await confirm_login_response.text()

@@ -81,6 +81,21 @@ async def test_get_confirmation_redirect(auth_instance):  # pylint: disable=rede
         location = await auth_instance._get_confirmation_redirect()  # pylint: disable=protected-access
         assert location == "https://example.com"
 
+@pytest.mark.asyncio
+async def test_get_confirmation_redirect_terms_of_use_not_accepted(auth_instance):  # pylint: disable=redefined-outer-name
+    """
+    Test the _get_confirmation_redirect method raises ConsentRequiredError
+    when terms of use are not accepted.
+    """
+    with patch(  # pylint: disable=protected-access
+        "pyanglianwater.auth.aiohttp.ClientSession.get", new_callable=AsyncMock
+    ) as mock_get:
+        mock_get.return_value.status = 200
+        mock_get.return_value.text = AsyncMock(
+            return_value='{"ID":"extension_termsOfUseConsentChoice", "IS_REQ":true}'
+        )
+        with pytest.raises(ConsentRequiredError):
+            await auth_instance._get_confirmation_redirect()  # pylint: disable=protected-access
 
 @pytest.mark.asyncio
 async def test_get_token(auth_instance):  # pylint: disable=redefined-outer-name
@@ -259,6 +274,11 @@ def test_raise_mapped_token_error_oauth_codes(error_code, expected_exception):
     "error_message,error_codes,expected_exception",
     [
         ("AADSTS700082: Refresh token expired", None, InvalidGrantError),
+        (
+            "AADB2C90080: The provided grant has expired. Please re-authenticate and try again",
+            None,
+            InvalidGrantError
+        ),
         ("AADSTS65001: Consent required", None, ConsentRequiredError),
         ("AADSTS50076: MFA required", None, InteractionRequiredError),
         ("AADSTS50079: MFA registration required", None, InteractionRequiredError),
