@@ -80,16 +80,11 @@ class AnglianWater:
                 END=(start + timedelta(days=1)).isoformat(),
             )
         except UnknownEndpointError as exc:
-            if exc.status != 500:
+            if exc.status >= 500:
                 raise
 
             _costs = {}
-            _LOGGER.warning(
-                "Usage costs not available for account %s due to API error - %s",
-                account_number,
-                start,
-            )
-            _LOGGER.debug(
+            _LOGGER.exception(
                 "Usage costs not available for account %s - %s (%s)",
                 account_number,
                 start,
@@ -110,14 +105,27 @@ class AnglianWater:
 
     async def get_billing_summary(self, account_number: str) -> BillingSummary:
         """Get billing summary data."""
-        _response = await self.api.send_request(
-            endpoint="get_account_summary",
-            body=None,
-            account_number=account_number,
-        )
-        result = _response.get("result", _response) if isinstance(_response, dict) else _response
-        self.billing = BillingSummary(result)
-        return self.billing
+        try:
+            _response = await self.api.send_request(
+                endpoint="get_account_summary",
+                body=None,
+                account_number=account_number,
+            )
+        except UnknownEndpointError as exc:
+            if exc.status >= 500:
+                raise
+
+            _LOGGER.exception(
+                "Billing summary not available for account %s (%s)",
+                account_number,
+                exc.response,
+            )
+        else:
+            result = (
+                _response.get("result", _response) if isinstance(_response, dict) else _response
+            )
+            self.billing = BillingSummary(result)
+            return self.billing
 
     async def validate_smart_meter(self, account_number: str):
         """Validates the account has a smart meter."""
