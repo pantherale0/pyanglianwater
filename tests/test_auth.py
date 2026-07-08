@@ -13,6 +13,8 @@ from pyanglianwater.exceptions import (
     ConsentRequiredError,
     ExpiredAccessTokenError,
     InteractionRequiredError,
+    MFARequiredError,
+    SelfAssertedError,
     InvalidAccountIdError,
     InvalidClientError,
     InvalidGrantError,
@@ -327,3 +329,78 @@ def test_raise_mapped_token_error_real_invalid_grant_refresh_fixture(
             response_text=refresh_invalid_grant_response_text,
         )
     assert "AADB2C90080" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_get_confirmation_redirect_raises_mfa_required(auth_instance):  # pylint: disable=redefined-outer-name
+    """MFA challenges should raise MFARequiredError (confirmed returns 200)."""
+    mfa_html = (
+        '<script>var SETTINGS = {"remoteResource":"https://example/2fa_login_challenge.html"};</script>'
+        '{"AttributeFields":[{"ID":"readonlyEmail","PRE":"test@example.com"},{"ID":"verificationCode"}]}'
+    )
+    with patch(
+        "pyanglianwater.auth.aiohttp.ClientSession.get",
+        new_callable=AsyncMock,
+    ) as mock_get:
+        mock_get.return_value.status = 200
+        mock_get.return_value.text = AsyncMock(return_value=mfa_html)
+
+        with pytest.raises(MFARequiredError) as exc:
+            await auth_instance._get_confirmation_redirect()  # pylint: disable=protected-access
+        assert exc.value.readonly_email == "test@example.com"
+
+
+@pytest.mark.asyncio
+async def test_send_mfa_request_resumes_and_clears_state(auth_instance):  # pylint: disable=redefined-outer-name
+    """send_mfa_request should complete auth and clear pending state."""
+    auth_instance._mfa_pending = True  # pylint: disable=protected-access
+    auth_instance._trans_id = "trans_id"  # pylint: disable=protected-access
+    auth_instance._csrf_token = "csrf"  # pylint: disable=protected-access
+    auth_instance._mfa_readonly_email = "test@example.com"  # pylint: disable=protected-access
+
+    with (
+        patch.object(
+            auth_instance,
+            "_submit_mfa_self_asserted_form",  # pylint: disable=protected-access
+            AsyncMock(),
+        ) as mock_submit,
+        patch.object(
+            auth_instance,
+            "_get_self_asserted_confirmation_redirect",  # pylint: disable=protected-access
+            AsyncMock(
+                return_value="uk.co.anglianwater.myaccount://oauth?code=test_code&state=test_state"
+            ),
+        ),
+        patch.object(
+            auth_instance,
+            "_get_token",  # pylint: disable=protected-access
+            AsyncMock(return_value={"access_token": "test_access", "expires_in": 3600, "refresh_token": "r"}),
+        ),
+    ):
+        await auth_instance.send_mfa_request("123456")
+
+    mock_submit.assert_awaited_once_with("trans_id", "123456")
+    assert auth_instance.access_token == "test_access"
+    assert not auth_instance._mfa_pending  # pylint: disable=protected-access
+    assert auth_instance._mfa_readonly_email is None  # pylint: disable=protected-access
+    assert auth_instance._trans_id is None  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_send_mfa_request_invalid_code_prompts_again(auth_instance):  # pylint: disable=redefined-outer-name
+    """Invalid/expired MFA codes should raise MFARequiredError for retry."""
+    auth_instance._mfa_pending = True  # pylint: disable=protected-access
+    auth_instance._trans_id = "trans_id"  # pylint: disable=protected-access
+    auth_instance._csrf_token = "csrf"  # pylint: disable=protected-access
+    auth_instance._mfa_readonly_email = "test@example.com"  # pylint: disable=protected-access
+
+    with (
+        patch.object(
+            auth_instance,
+            "_submit_mfa_self_asserted_form",  # pylint: disable=protected-access
+            AsyncMock(side_effect=SelfAssertedError("invalid_code")),
+        ),
+    ):
+        with pytest.raises(MFARequiredError) as excinfo:
+            await auth_instance.send_mfa_request("123456")
+        assert excinfo.value.readonly_email == "test@example.com"
