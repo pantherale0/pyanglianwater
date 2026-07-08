@@ -591,7 +591,17 @@ class MSOB2CAuth:
             raise ValueError("Missing CSRF token; call send_login_request() first")
 
         # Submit the MFA code
-        await self._submit_mfa_self_asserted_form(self._trans_id, verification_code)
+        try:
+            await self._submit_mfa_self_asserted_form(
+                self._trans_id, verification_code
+            )
+        except SelfAssertedError as exc:
+            # Browser stays on the MFA step for invalid/expired codes.
+            # Re-signal the MFA requirement so callers can prompt again
+            # without restarting the login flow.
+            raise MFARequiredError(
+                readonly_email=self._mfa_readonly_email
+            ) from exc
 
         # Confirmation should now complete with a 302 redirect containing the auth code.
         redirect_location = await self._get_self_asserted_confirmation_redirect()

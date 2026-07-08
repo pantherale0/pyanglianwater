@@ -14,6 +14,7 @@ from pyanglianwater.exceptions import (
     ExpiredAccessTokenError,
     InteractionRequiredError,
     MFARequiredError,
+    SelfAssertedError,
     InvalidAccountIdError,
     InvalidClientError,
     InvalidGrantError,
@@ -383,3 +384,23 @@ async def test_send_mfa_request_resumes_and_clears_state(auth_instance):  # pyli
     assert not auth_instance._mfa_pending  # pylint: disable=protected-access
     assert auth_instance._mfa_readonly_email is None  # pylint: disable=protected-access
     assert auth_instance._trans_id is None  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_send_mfa_request_invalid_code_prompts_again(auth_instance):  # pylint: disable=redefined-outer-name
+    """Invalid/expired MFA codes should raise MFARequiredError for retry."""
+    auth_instance._mfa_pending = True  # pylint: disable=protected-access
+    auth_instance._trans_id = "trans_id"  # pylint: disable=protected-access
+    auth_instance._csrf_token = "csrf"  # pylint: disable=protected-access
+    auth_instance._mfa_readonly_email = "test@example.com"  # pylint: disable=protected-access
+
+    with (
+        patch.object(
+            auth_instance,
+            "_submit_mfa_self_asserted_form",  # pylint: disable=protected-access
+            AsyncMock(side_effect=SelfAssertedError("invalid_code")),
+        ),
+    ):
+        with pytest.raises(MFARequiredError) as excinfo:
+            await auth_instance.send_mfa_request("123456")
+        assert excinfo.value.readonly_email == "test@example.com"
