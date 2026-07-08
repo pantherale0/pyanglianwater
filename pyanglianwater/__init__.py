@@ -110,9 +110,9 @@ class AnglianWater:
                 endpoint="get_account_summary",
                 body=None,
                 account_number=account_number,
-                HAS_PAYMENT_ARRANGEMENT=self.account_config.get("has_payment_arrangement", "false"),
-                HAS_FUTURE_MOVE_IN=self.account_config.get("has_future_move_in", "false"),
-                HAS_COURT_ACCOUNT=self.account_config.get("has_court_account", "false"),
+                HAS_PAYMENT_ARRANGEMENT=str(self.account_config.get("has_payment_arrangement", False)).lower(),
+                HAS_FUTURE_MOVE_IN=str(self.account_config.get("has_future_move_in", False)).lower(),
+                HAS_COURT_ACCOUNT=str(self.account_config.get("has_court_account", False)).lower(),
             )
         except UnknownEndpointError as exc:
             if exc.status >= 500:
