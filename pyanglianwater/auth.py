@@ -256,13 +256,22 @@ class MSOB2CAuth:
         """Extract SETTINGS.csrf from MFA challenge HTML."""
         # Observed in the MFA challenge HTML as:
         # var SETTINGS = {...,"csrf":"<value>",...};
-        match = re.search(
-            r'var\s+SETTINGS\s*=\s*\{.*?"csrf"\s*:\s*"([^"]+?)"',
+        # Use a bounded match first to avoid scanning the entire HTML document.
+        settings_match = re.search(
+            r"var\s+SETTINGS\s*=\s*\{([^;]+)\};",
             html,
             flags=re.I | re.S,
         )
-        if match:
-            return match.group(1)
+        if not settings_match:
+            return None
+
+        csrf_match = re.search(
+            r'"csrf"\s*:\s*"([^"]+?)"',
+            settings_match.group(1),
+            flags=re.I,
+        )
+        if csrf_match:
+            return csrf_match.group(1)
         return None
 
     async def _submit_mfa_self_asserted_form(
@@ -298,17 +307,24 @@ class MSOB2CAuth:
 
         try:
             data = await asserted_login_response.json(content_type="text/json")
-        except (aiohttp.ContentTypeError, json.JSONDecodeError) as e:
+            if not isinstance(data, dict) or "status" not in data:
+                raise ValueError("Missing status in MFA response")
+            status = int(data["status"])
+        except (
+            aiohttp.ContentTypeError,
+            json.JSONDecodeError,
+            ValueError,
+            TypeError,
+        ) as e:
             text = await asserted_login_response.text()
             _LOGGER.error(
-                "B2C Auth: MFA SelfAsserted returned non-JSON (%s): %s",
+                "B2C Auth: MFA SelfAsserted returned invalid response (%s): %s",
                 asserted_login_response.status,
                 text,
             )
             raise SelfAssertedError(
                 f"Unexpected MFA response ({asserted_login_response.status})"
             ) from e
-        status = int(data.get("status"))
         if asserted_login_response.status != 200 or status != 200:
             _LOGGER.error(
                 "B2C Auth: MFA SelfAsserted request failed %s: %s",
@@ -573,11 +589,15 @@ class MSOB2CAuth:
             return
 
         self.auth_data = token_response
-        self.next_refresh = datetime.now() + timedelta(
-            seconds=token_response["expires_in"]
-        )
+        try:
+            expires_in = int(token_response.get("expires_in", 3600))
+        except (ValueError, TypeError):
+            expires_in = 3600
+        self.next_refresh = datetime.now() + timedelta(seconds=expires_in)
         self._refresh_token = token_response.get("refresh_token")
-        self.auth_data = {**self.auth_data, **decode_jwt(self.access_token)}
+        access_token = self.access_token
+        if access_token:
+            self.auth_data = {**self.auth_data, **decode_jwt(access_token)}
         _LOGGER.debug(
             "B2C Auth: Access token obtained successfully, new expiration time: %s",
             self.next_refresh,
@@ -617,11 +637,15 @@ class MSOB2CAuth:
             raise TokenRequestError("Token request failed after MFA")
 
         self.auth_data = token_response
-        self.next_refresh = datetime.now() + timedelta(
-            seconds=token_response["expires_in"]
-        )
+        try:
+            expires_in = int(token_response.get("expires_in", 3600))
+        except (ValueError, TypeError):
+            expires_in = 3600
+        self.next_refresh = datetime.now() + timedelta(seconds=expires_in)
         self._refresh_token = token_response.get("refresh_token")
-        self.auth_data = {**self.auth_data, **decode_jwt(self.access_token)}
+        access_token = self.access_token
+        if access_token:
+            self.auth_data = {**self.auth_data, **decode_jwt(access_token)}
 
         # MFA is satisfied; clear pending state.
         self._mfa_pending = False
