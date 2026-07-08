@@ -15,7 +15,14 @@ AW_APP_ENDPOINTS = {
     },
     "get_account_summary": {
         "method": "GET",
-        "endpoint": "/myaccount/v1/accounts/{ACCOUNT_ID}/billing/summary",
+        # The backend expects these query parameters; omitting them may yield
+        # a 400 validation error (e.g. "Has Payment Arrangement must not be empty").
+        "endpoint": (
+            "/myaccount/v1/accounts/{ACCOUNT_ID}/billing/summary"
+            "?haspaymentarrangement={HAS_PAYMENT_ARRANGEMENT}"
+            "&hasfuturemovein={HAS_FUTURE_MOVE_IN}"
+            "&hascourtaccount={HAS_COURT_ACCOUNT}"
+        ),
     },
     "get_usage_costs": {
         "method": "GET",

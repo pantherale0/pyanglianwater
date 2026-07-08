@@ -110,6 +110,9 @@ class AnglianWater:
                 endpoint="get_account_summary",
                 body=None,
                 account_number=account_number,
+                HAS_PAYMENT_ARRANGEMENT=str(self.account_config.get("has_payment_arrangement", False)).lower(),
+                HAS_FUTURE_MOVE_IN=str(self.account_config.get("has_future_move_in", False)).lower(),
+                HAS_COURT_ACCOUNT=str(self.account_config.get("has_court_account", False)).lower(),
             )
         except UnknownEndpointError as exc:
             if exc.status >= 500:
@@ -144,7 +147,7 @@ class AnglianWater:
             self._first_update = False
         await self.get_comparison(account_number)
         await self.get_usages(account_number)
-        # await self.get_billing_summary(account_number)
+        await self.get_billing_summary(account_number)
         for callback in self.updated_data_callbacks:
             if is_awaitable(callback):
                 await callback()
