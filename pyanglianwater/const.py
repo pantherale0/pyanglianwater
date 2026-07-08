@@ -67,6 +67,17 @@ AUTH_MSO_CONFIRM_URL = (
     f"{AUTH_MSO_BASE}/api/CombinedSigninAndSignup/confirmed?rememberMe=true&"
     "csrf_token={CSRF}&tx={STATE}&p=B2C_1A_SignUpOrSignIn"
 )
+
+# Browser uses rememberMe=false during the MFA transition referer.
+AUTH_MSO_CONFIRM_URL_NO_REMEMBER = (
+    f"{AUTH_MSO_BASE}/api/CombinedSigninAndSignup/confirmed?rememberMe=false&"
+    "csrf_token={CSRF}&tx={STATE}&p=B2C_1A_SignUpOrSignIn"
+)
+
+# After successful MFA, the browser transitions via the SelfAsserted confirmed endpoint.
+AUTH_MSO_SELF_ASSERTED_CONFIRM_URL = (
+    f"{AUTH_MSO_BASE}/api/SelfAsserted/confirmed?csrf_token={{CSRF}}&tx={{STATE}}&p=B2C_1A_SignUpOrSignIn"
+)
 AUTH_MSO_OAUTH_SERVICE = (
     "https://customeronlinejourney.b2clogin.com/customeronlinejourney.onmicrosoft.com/"
     "B2C_1A_SIGNUPORSIGNIN/oauth2/v2.0"

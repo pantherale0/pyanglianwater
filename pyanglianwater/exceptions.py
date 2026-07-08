@@ -86,6 +86,18 @@ class SelfAssertedError(AuthError):
     """Error performing login via username and password."""
 
 
+class MFARequiredError(AuthError):
+    """2FA/MFA is required to complete the login flow.
+
+    When raised, the caller should prompt the user for the verification code
+    and resume the auth flow by calling `MSOB2CAuth.send_mfa_request()`.
+    """
+
+    def __init__(self, message: str = "MFA required", readonly_email: str | None = None):
+        super().__init__(message)
+        self.readonly_email = readonly_email
+
+
 class ConfirmationRedirectError(AuthError):
     """Error confirming login with redirect."""
 

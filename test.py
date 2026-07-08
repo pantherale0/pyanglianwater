@@ -9,6 +9,7 @@ import aiohttp
 from dotenv import load_dotenv
 from pyanglianwater import AnglianWater
 from pyanglianwater.auth import MSOB2CAuth
+from pyanglianwater.exceptions import MFARequiredError
 
 _LOGGER = logging.getLogger(__name__)
 load_dotenv()
@@ -32,7 +33,23 @@ async def main():
             _LOGGER.debug("Refresh token: %s", authenticator.refresh_token)
             _LOGGER.debug("Access token: %s", authenticator.access_token)
             login = False
-        except Exception as exc:
+        except MFARequiredError as exc:
+            readonly_email = exc.readonly_email
+            while True:
+                code = input(
+                    "Enter MFA verification code"
+                    f"{' for ' + readonly_email if readonly_email else ''}: "
+                )
+                try:
+                    await authenticator.send_mfa_request(code)
+                    _LOGGER.debug("Logged in with MFA. Ready..")
+                    _LOGGER.debug("Refresh token: %s", authenticator.refresh_token)
+                    _LOGGER.debug("Access token: %s", authenticator.access_token)
+                    login = False
+                    break
+                except MFARequiredError:
+                    _LOGGER.error("MFA code was rejected/expired. Please try again.")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             _LOGGER.error(exc)
 
     water = AnglianWater(authenticator)
@@ -56,5 +73,4 @@ if __name__ == "__main__":
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    asyncio.run(main())
