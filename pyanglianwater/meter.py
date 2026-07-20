@@ -49,23 +49,80 @@ class SmartMeter:
     """
 
     last_reading: float = 0.0
-    yesterday_water_cost: float = 0.0
-    yesterday_sewerage_cost: float = 0.0
 
     def __init__(self, serial_number):
         self.serial_number = serial_number
         self.readings = []
+        self.daily_costs: dict[str, dict] = {}
 
     def update_reading_cache(self, reads: list, costs: dict):
-        """Updates the cache of meter reads for the smart meter."""
+        """Updates the cache of meter reads for the smart meter.
+
+        costs maps ISO dates to {"total_cost", "water_cost", "sewerage_cost"}
+        for each day cost data is available.
+        """
         self.readings = []
         for reading in reads:
             for meter in reading["meters"]:
                 if meter["meter_serial_number"] == self.serial_number:
                     self.readings.append({**meter})
                     self.last_reading = float(meter["read"])
-        self.yesterday_water_cost = costs.get("result", {}).get("water_cost", 0.0)
-        self.yesterday_sewerage_cost = costs.get("result", {}).get("sewerage_cost", 0.0)
+        self.daily_costs = dict(costs)
+
+    @property
+    def latest_cost_date(self) -> str | None:
+        """Returns the most recent ISO date with cost data available."""
+        if not self.daily_costs:
+            return None
+        return max(self.daily_costs)
+
+    @property
+    def yesterday_water_cost(self) -> float:
+        """Returns the water cost for the most recent day with cost data.
+
+        Cost data is published a few days behind readings, so this is the
+        latest available day rather than the literal calendar yesterday.
+        """
+        date = self.latest_cost_date
+        if date is None:
+            return 0.0
+        return float(self.daily_costs[date].get("water_cost", 0.0))
+
+    @property
+    def yesterday_sewerage_cost(self) -> float:
+        """Returns the sewerage cost for the most recent day with cost data."""
+        date = self.latest_cost_date
+        if date is None:
+            return 0.0
+        return float(self.daily_costs[date].get("sewerage_cost", 0.0))
+
+    def get_hourly_costs(self) -> list[dict]:
+        """Returns per-reading costs, distributing each day's total cost
+        across that day's readings in proportion to consumption."""
+        by_day: dict[str, list] = {}
+        for reading in self.readings:
+            read_at = parse_iso_datetime(reading["read_at"])
+            if read_at is None:
+                continue
+            by_day.setdefault(read_at.date().isoformat(), []).append(reading)
+        hourly = []
+        for day, rows in by_day.items():
+            costs = self.daily_costs.get(day)
+            if not costs:
+                continue
+            day_consumption = sum(float(r["consumption"]) for r in rows)
+            if day_consumption <= 0:
+                continue
+            day_total = float(costs.get("total_cost", 0.0))
+            for row in rows:
+                hourly.append(
+                    {
+                        "read_at": row["read_at"],
+                        "cost": day_total * float(row["consumption"]) / day_consumption,
+                    }
+                )
+        hourly.sort(key=lambda entry: entry["read_at"])
+        return hourly
 
     @property
     def get_yesterday_readings(self) -> list:
@@ -115,6 +172,7 @@ class SmartMeter:
             "last_reading": self.last_reading,
             "readings": self.readings,
             "consumption": self.latest_consumption,
+            "daily_costs": self.daily_costs,
         }
 
     def __iter__(self):

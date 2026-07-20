@@ -3,7 +3,7 @@
 import logging
 
 from typing import Callable
-from datetime import timedelta, datetime as dt
+from datetime import timedelta, datetime as dt, time as dt_time
 
 from .api import API
 from .auth import MSOB2CAuth
@@ -11,7 +11,7 @@ from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
 from .billing import BillingSummary
 from .meter import SmartMeter, UsageComparison
-from .utils import is_awaitable
+from .utils import is_awaitable, parse_iso_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ class AnglianWater:
         self.billing: BillingSummary | None = None
         self.updated_data_callbacks: list[Callable] = []
         self._first_update = True
+        self._daily_costs_cache: dict[str, dict] = {}
 
     @property
     def current_tariff(self) -> str:
@@ -63,35 +64,81 @@ class AnglianWater:
         update_cache: bool = True,
     ) -> dict:
         """Calculates the usage using the provided date range."""
-        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(days=1)
         _response = await self.api.send_request(
             endpoint="get_usage_details",
             body=None,
             account_number=account_number,
             GRANULARITY=str(interval),
         )
-        try:
-            _costs = await self.api.send_request(
-                endpoint="get_usage_costs",
-                body=None,
-                account_number=account_number,
-                GRANULARITY=str(interval),
-                START=start.isoformat(),
-                END=(start + timedelta(days=1)).isoformat(),
-            )
-        except UnknownEndpointError as exc:
-            # The costs endpoint returns a 500 with an empty errors array when
-            # no cost data exists for the requested window (data is published
-            # ~3 days behind), so server errors are treated as "unavailable"
-            # rather than fatal.
-            _costs = {}
-            _LOGGER.exception(
-                "Usage costs not available for account %s - %s (%s)",
-                account_number,
-                start,
-                exc.response,
-            )
+        records = _response
+        if isinstance(records, dict) and "result" in records:
+            records = records["result"]
+        if isinstance(records, dict) and "records" in records:
+            records = records["records"]
+        days = set()
+        for record in records or []:
+            for meter in record.get("meters", []):
+                read_at = parse_iso_datetime(meter.get("read_at", ""))
+                if read_at is not None:
+                    days.add(read_at.date())
+        _costs = await self._get_daily_costs(account_number, sorted(days), interval)
         return await self.parse_usages(_response, _costs, update_cache)
+
+    async def _get_daily_costs(
+        self,
+        account_number: str,
+        days: list,
+        interval: UsagesReadGranularity,
+    ) -> dict:
+        """Fetch usage costs for each given day, caching across updates.
+
+        Returns a map of ISO date -> {"total_cost", "water_cost",
+        "sewerage_cost"}. Days whose cost data is not yet published (the
+        endpoint returns a 500 with an empty errors array for those) are
+        skipped rather than treated as fatal.
+        """
+        costs: dict[str, dict] = {}
+        for day in days:
+            key = day.isoformat()
+            if key in self._daily_costs_cache:
+                costs[key] = self._daily_costs_cache[key]
+                continue
+            # The API groups a day's usage into the 23:00-to-23:00 window
+            # ending on that day.
+            start = dt.combine(day - timedelta(days=1), dt_time(23, 0))
+            try:
+                response = await self.api.send_request(
+                    endpoint="get_usage_costs",
+                    body=None,
+                    account_number=account_number,
+                    GRANULARITY=str(interval),
+                    START=start.isoformat(),
+                    END=(start + timedelta(days=1)).isoformat(),
+                )
+            except UnknownEndpointError as exc:
+                _LOGGER.debug(
+                    "Usage costs not available for account %s - %s (%s)",
+                    account_number,
+                    key,
+                    exc.response,
+                )
+                continue
+            result = response.get("result") if isinstance(response, dict) else None
+            if not isinstance(result, dict):
+                continue
+            entry = {
+                "total_cost": float(result.get("total_cost") or 0.0),
+                "water_cost": float(result.get("water_cost") or 0.0),
+                "sewerage_cost": float(result.get("sewerage_cost") or 0.0),
+            }
+            costs[key] = entry
+            self._daily_costs_cache[key] = entry
+        # Drop cached days that have fallen out of the readings window.
+        keep = {day.isoformat() for day in days}
+        self._daily_costs_cache = {
+            k: v for k, v in self._daily_costs_cache.items() if k in keep
+        }
+        return costs
 
     async def get_comparison(self, account_number: str) -> UsageComparison:
         """Get usage comparison data."""

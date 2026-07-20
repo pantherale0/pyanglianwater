@@ -124,6 +124,121 @@ async def test_get_usages_costs_server_error(anglian_water):  # pylint: disable=
     assert anglian_water.meters["12345"].yesterday_sewerage_cost == 0.0
 
 
+_USAGE_TWO_DAYS = {
+    "result": {
+        "records": [
+            {
+                "date": "2026-07-15T01:00:00",
+                "meters": [
+                    {
+                        "meter_serial_number": "M1",
+                        "read": 10.1,
+                        "consumption": 100.0,
+                        "read_at": "2026-07-15T01:00:00",
+                    }
+                ],
+            },
+            {
+                "date": "2026-07-15T02:00:00",
+                "meters": [
+                    {
+                        "meter_serial_number": "M1",
+                        "read": 10.4,
+                        "consumption": 300.0,
+                        "read_at": "2026-07-15T02:00:00",
+                    }
+                ],
+            },
+            {
+                "date": "2026-07-16T01:00:00",
+                "meters": [
+                    {
+                        "meter_serial_number": "M1",
+                        "read": 10.5,
+                        "consumption": 100.0,
+                        "read_at": "2026-07-16T01:00:00",
+                    }
+                ],
+            },
+        ]
+    }
+}
+
+
+@pytest.mark.asyncio
+async def test_get_usages_fetches_costs_per_day(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_usages fetches costs for each day covered by the readings."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=[
+            _USAGE_TWO_DAYS,
+            {"result": {"total_cost": 2.0, "water_cost": 1.2, "sewerage_cost": 0.8}},
+            {"result": {"total_cost": 1.0, "water_cost": 0.6, "sewerage_cost": 0.4}},
+        ]
+    )
+    await anglian_water.get_usages(account_number="1")
+    meter = anglian_water.meters["M1"]
+    assert meter.daily_costs["2026-07-15"]["water_cost"] == 1.2
+    assert meter.daily_costs["2026-07-16"]["water_cost"] == 0.6
+    # yesterday_* now reflect the most recent day with cost data available
+    assert meter.yesterday_water_cost == 0.6
+    assert meter.yesterday_sewerage_cost == 0.4
+    # Cost windows follow the API's 23:00-to-23:00 day convention
+    first_cost_call = anglian_water.api.send_request.call_args_list[1]
+    assert first_cost_call.kwargs["START"] == "2026-07-14T23:00:00"
+    assert first_cost_call.kwargs["END"] == "2026-07-15T23:00:00"
+
+
+@pytest.mark.asyncio
+async def test_get_usages_skips_unavailable_cost_days(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that a cost 5xx for one day does not lose other days or fail the update."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=[
+            _USAGE_TWO_DAYS,
+            {"result": {"total_cost": 2.0, "water_cost": 1.2, "sewerage_cost": 0.8}},
+            UnknownEndpointError(500, '{"result":{"errors":[]}}'),
+        ]
+    )
+    await anglian_water.get_usages(account_number="1")
+    meter = anglian_water.meters["M1"]
+    assert "2026-07-15" in meter.daily_costs
+    assert "2026-07-16" not in meter.daily_costs
+    # Falls back to the most recent day that does have data
+    assert meter.yesterday_water_cost == 1.2
+
+
+@pytest.mark.asyncio
+async def test_get_usages_caches_daily_costs(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that daily costs are cached and not refetched on subsequent updates."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=[
+            _USAGE_TWO_DAYS,
+            {"result": {"total_cost": 2.0, "water_cost": 1.2, "sewerage_cost": 0.8}},
+            {"result": {"total_cost": 1.0, "water_cost": 0.6, "sewerage_cost": 0.4}},
+            _USAGE_TWO_DAYS,
+        ]
+    )
+    await anglian_water.get_usages(account_number="1")
+    await anglian_water.get_usages(account_number="1")
+    # 1 usage + 2 costs on first update, 1 usage + 0 costs on second
+    assert anglian_water.api.send_request.call_count == 4
+    assert anglian_water.meters["M1"].daily_costs["2026-07-16"]["water_cost"] == 0.6
+
+
+def test_meter_hourly_costs():
+    """Test that hourly costs distribute each day's cost by consumption share."""
+    meter = SmartMeter(serial_number="M1")
+    meter.update_reading_cache(
+        _USAGE_TWO_DAYS["result"]["records"],
+        {"2026-07-15": {"total_cost": 2.0, "water_cost": 1.2, "sewerage_cost": 0.8}},
+    )
+    hourly = meter.get_hourly_costs()
+    # Only 2026-07-15 has cost data; its £2.00 splits 100L/300L -> £0.50/£1.50
+    assert len(hourly) == 2
+    assert hourly[0]["read_at"] == "2026-07-15T01:00:00"
+    assert hourly[0]["cost"] == pytest.approx(0.5)
+    assert hourly[1]["cost"] == pytest.approx(1.5)
+
+
 @pytest.mark.asyncio
 async def test_update(anglian_water):  # pylint: disable=redefined-outer-name
     """Test that update validates smart meter and fetches usage data."""
