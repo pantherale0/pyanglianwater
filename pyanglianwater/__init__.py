@@ -80,9 +80,10 @@ class AnglianWater:
                 END=(start + timedelta(days=1)).isoformat(),
             )
         except UnknownEndpointError as exc:
-            if exc.status >= 500:
-                raise
-
+            # The costs endpoint returns a 500 with an empty errors array when
+            # no cost data exists for the requested window (data is published
+            # ~3 days behind), so server errors are treated as "unavailable"
+            # rather than fatal.
             _costs = {}
             _LOGGER.exception(
                 "Usage costs not available for account %s - %s (%s)",
@@ -115,9 +116,9 @@ class AnglianWater:
                 HAS_COURT_ACCOUNT=str(self.account_config.get("has_court_account", False)).lower(),
             )
         except UnknownEndpointError as exc:
-            if exc.status >= 500:
-                raise
-
+            # Treat server errors the same as client errors here: the backend
+            # can 500 when summary data is unavailable, and billing must not
+            # fail the wider update cycle.
             _LOGGER.exception(
                 "Billing summary not available for account %s (%s)",
                 account_number,

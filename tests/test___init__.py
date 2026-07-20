@@ -12,6 +12,7 @@ from pyanglianwater import (
     UsageComparison,
 )
 from pyanglianwater.auth import MSOB2CAuth
+from pyanglianwater.exceptions import UnknownEndpointError
 
 
 @pytest.fixture
@@ -83,6 +84,44 @@ async def test_get_usages(anglian_water):  # pylint: disable=redefined-outer-nam
     result = await anglian_water.get_usages(account_number=account_number, update_cache=False)
     assert "12345" in anglian_water.meters
     assert isinstance(result, (dict, list))
+
+
+@pytest.mark.asyncio
+async def test_get_usages_costs_server_error(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_usages still returns usage data when the costs endpoint returns a 5xx.
+
+    The costs endpoint 500s whenever the requested window has no cost data yet
+    (Anglian Water publish cost data ~3 days behind), so a server error must not
+    prevent meter readings from being parsed.
+    """
+    account_number = "12345"
+    usage_response = {
+        "result": {
+            "records": [
+                {
+                    "meters": [
+                        {
+                            "meter_serial_number": "12345",
+                            "read": 100.0,
+                            "consumption": 10.0,
+                            "read_at": "2023-10-01T00:00:00Z",
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=[
+            usage_response,
+            UnknownEndpointError(500, '{"result":{"errors":[]}}'),
+        ]
+    )
+    result = await anglian_water.get_usages(account_number=account_number)
+    assert "12345" in anglian_water.meters
+    assert isinstance(result, (dict, list))
+    assert anglian_water.meters["12345"].yesterday_water_cost == 0.0
+    assert anglian_water.meters["12345"].yesterday_sewerage_cost == 0.0
 
 
 @pytest.mark.asyncio
@@ -326,6 +365,21 @@ async def test_get_billing_summary_no_arrangement(anglian_water):  # pylint: dis
     assert isinstance(result, BillingSummary)
     assert result.payment_arrangement is None
     assert result.account_balance == 0.00
+
+
+@pytest.mark.asyncio
+async def test_get_billing_summary_server_error(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_billing_summary treats a 5xx as unavailable instead of raising.
+
+    Mirrors the usage-costs behaviour: the backend can 500 when summary data
+    is not available, which must not fail the wider update cycle.
+    """
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=UnknownEndpointError(500, '{"result":{"errors":[]}}')
+    )
+    result = await anglian_water.get_billing_summary(account_number="12345")
+    assert result is None
+    assert anglian_water.billing is None
 
 
 def test_to_dict_includes_billing(anglian_water):  # pylint: disable=redefined-outer-name
