@@ -52,8 +52,9 @@ class SmartMeter:
     yesterday_water_cost: float = 0.0
     yesterday_sewerage_cost: float = 0.0
 
-    def __init__(self, serial_number):
+    def __init__(self, serial_number: str, cost_supported: bool = False):
         self.serial_number = serial_number
+        self.cost_supported: bool = cost_supported
         self.readings = []
 
     def update_reading_cache(self, reads: list, costs: dict):

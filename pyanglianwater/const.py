@@ -98,3 +98,8 @@ AW_ENCRYPTION_IV_SIZE = 16  # 128 bits
 AW_ENCRYPTION_KEY_SIZE = 32  # 256 bits
 AW_ENCRYPTION_ITERATIONS = 100
 AW_ENCRYPTION_PBKDF2_HASH = "sha1"
+
+
+# I only know about the Standard tariff at the moment that supports cost data.
+# Add more tariffs as they are discovered.
+AW_COST_SUPPORTED_TARIFFS = ["Standard"]
