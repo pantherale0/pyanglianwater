@@ -1,5 +1,6 @@
 """Tests for the AnglianWater module."""
 
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -31,6 +32,8 @@ def test_initialization(anglian_water):  # pylint: disable=redefined-outer-name
     assert anglian_water.meters == {}
     assert anglian_water.account_config == {}
     assert anglian_water.updated_data_callbacks == []
+    assert anglian_water.data_delay == 1
+    assert anglian_water._data_delay_manual is False  # pylint: disable=protected-access
     assert isinstance(anglian_water.api, API)
 
 
@@ -53,6 +56,71 @@ async def test_parse_usages(anglian_water):  # pylint: disable=redefined-outer-n
     await anglian_water.parse_usages(mock_response, mock_costs, update_cache=False)
     assert "12345" in anglian_water.meters
     assert isinstance(anglian_water.meters["12345"], SmartMeter)
+
+
+@pytest.mark.asyncio
+async def test_parse_usages_auto_data_delay(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that parse_usages derives data_delay from last_meter_read_date."""
+    last_read = (datetime.now() - timedelta(days=2)).replace(
+        hour=23, minute=0, second=0, microsecond=0
+    )
+    mock_response = {
+        "result": {
+            "first_meter_read_date": (datetime.now() - timedelta(days=30)).isoformat(
+                timespec="seconds"
+            ),
+            "last_meter_read_date": last_read.isoformat(timespec="seconds"),
+            "meter_count": 1,
+            "records": [
+                {
+                    "meters": [
+                        {
+                            "meter_serial_number": "12345",
+                            "read": 100.0,
+                            "consumption": 10.0,
+                            "read_at": last_read.isoformat(timespec="seconds"),
+                        }
+                    ]
+                }
+            ],
+        }
+    }
+    await anglian_water.parse_usages(mock_response, {}, update_cache=False)
+    assert anglian_water.data_delay == 2
+    assert anglian_water.meters["12345"].last_meter_read_date is not None
+    assert anglian_water.meters["12345"].available is True
+
+
+@pytest.mark.asyncio
+async def test_parse_usages_manual_data_delay_not_overwritten(
+    anglian_water,
+):  # pylint: disable=redefined-outer-name
+    """Test that a manual data_delay override is preserved on subsequent parse."""
+    anglian_water.data_delay = 3
+    assert anglian_water._data_delay_manual is True  # pylint: disable=protected-access
+
+    last_read = (datetime.now() - timedelta(days=1)).replace(
+        hour=23, minute=0, second=0, microsecond=0
+    )
+    mock_response = {
+        "result": {
+            "last_meter_read_date": last_read.isoformat(timespec="seconds"),
+            "records": [
+                {
+                    "meters": [
+                        {
+                            "meter_serial_number": "12345",
+                            "read": 100.0,
+                            "consumption": 10.0,
+                            "read_at": last_read.isoformat(timespec="seconds"),
+                        }
+                    ]
+                }
+            ],
+        }
+    }
+    await anglian_water.parse_usages(mock_response, {}, update_cache=False)
+    assert anglian_water.data_delay == 3
 
 
 @pytest.mark.asyncio

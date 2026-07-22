@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from .const import AW_METER_MAX_LAG_DAYS
 from .utils import parse_iso_datetime
 
 
@@ -56,6 +57,8 @@ class SmartMeter:
         self.serial_number = serial_number
         self.cost_supported: bool = cost_supported
         self.readings = []
+        self.first_meter_read_date: datetime | None = None
+        self.last_meter_read_date: datetime | None = None
 
     def update_reading_cache(self, reads: list, costs: dict):
         """Updates the cache of meter reads for the smart meter."""
@@ -67,6 +70,14 @@ class SmartMeter:
                     self.last_reading = float(meter["read"])
         self.yesterday_water_cost = costs.get("result", {}).get("water_cost", 0.0)
         self.yesterday_sewerage_cost = costs.get("result", {}).get("sewerage_cost", 0.0)
+
+    @property
+    def available(self) -> bool:
+        """Return True when last meter read is within the expected lag window."""
+        if self.last_meter_read_date is None:
+            return False
+        lag = (datetime.now().date() - self.last_meter_read_date.date()).days
+        return lag <= AW_METER_MAX_LAG_DAYS
 
     @property
     def get_yesterday_readings(self) -> list:
@@ -116,6 +127,17 @@ class SmartMeter:
             "last_reading": self.last_reading,
             "readings": self.readings,
             "consumption": self.latest_consumption,
+            "available": self.available,
+            "first_meter_read_date": (
+                self.first_meter_read_date.isoformat()
+                if self.first_meter_read_date
+                else None
+            ),
+            "last_meter_read_date": (
+                self.last_meter_read_date.isoformat()
+                if self.last_meter_read_date
+                else None
+            ),
         }
 
     def __iter__(self):

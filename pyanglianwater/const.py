@@ -103,3 +103,6 @@ AW_ENCRYPTION_PBKDF2_HASH = "sha1"
 # I only know about the Standard tariff at the moment that supports cost data.
 # Add more tariffs as they are discovered.
 AW_COST_SUPPORTED_TARIFFS = ["Standard"]
+
+# Normal smart-meter lag is ~1 day; some areas lag by up to 4 days.
+AW_METER_MAX_LAG_DAYS = 4
