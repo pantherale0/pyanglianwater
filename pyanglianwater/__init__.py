@@ -7,6 +7,7 @@ from datetime import timedelta, datetime as dt
 
 from .api import API
 from .auth import MSOB2CAuth
+from .const import AW_COST_SUPPORTED_TARIFFS
 from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
 from .billing import BillingSummary
@@ -30,6 +31,7 @@ class AnglianWater:
         self.comparison: UsageComparison | None = None
         self.billing: BillingSummary | None = None
         self.updated_data_callbacks: list[Callable] = []
+        self.data_delay: int = 1 # number of days to 'delay' the data
         self._first_update = True
 
     @property
@@ -51,7 +53,10 @@ class AnglianWater:
         for meter in meter_reads:
             serial_number = meter["meter_serial_number"]
             if serial_number not in self.meters:
-                self.meters[serial_number] = SmartMeter(serial_number=serial_number)
+                self.meters[serial_number] = SmartMeter(
+                    serial_number=serial_number,
+                    cost_supported=self.current_tariff in AW_COST_SUPPORTED_TARIFFS
+                )
             if update_cache:
                 self.meters[serial_number].update_reading_cache(_response, _costs)
         return _response
@@ -63,30 +68,38 @@ class AnglianWater:
         update_cache: bool = True,
     ) -> dict:
         """Calculates the usage using the provided date range."""
-        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(days=1)
+        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(days=self.data_delay)
         _response = await self.api.send_request(
             endpoint="get_usage_details",
             body=None,
             account_number=account_number,
             GRANULARITY=str(interval),
         )
+        _costs = {}
         try:
-            _costs = await self.api.send_request(
-                endpoint="get_usage_costs",
-                body=None,
-                account_number=account_number,
-                GRANULARITY=str(interval),
-                START=start.isoformat(),
-                END=(start + timedelta(days=1)).isoformat(),
-            )
+            if self.current_tariff == "Standard":
+                _costs = await self.api.send_request(
+                    endpoint="get_usage_costs",
+                    body=None,
+                    account_number=account_number,
+                    GRANULARITY=str(interval),
+                    START=start.isoformat(),
+                    END=(start + timedelta(days=1)).isoformat(),
+                )
+            else:
+                _LOGGER.info(
+                    "Usage costs not available for account %s with tariff %s",
+                    account_number,
+                    self.current_tariff
+                )
         except UnknownEndpointError as exc:
-            if exc.status >= 500:
+            if exc.status >= 501:
                 raise
 
-            _costs = {}
             _LOGGER.exception(
-                "Usage costs not available for account %s - %s (%s)",
+                "Usage costs not available for account %s (%s) - %s (%s)",
                 account_number,
+                self.current_tariff,
                 start,
                 exc.response,
             )
@@ -110,9 +123,15 @@ class AnglianWater:
                 endpoint="get_account_summary",
                 body=None,
                 account_number=account_number,
-                HAS_PAYMENT_ARRANGEMENT=str(self.account_config.get("has_payment_arrangement", False)).lower(),
-                HAS_FUTURE_MOVE_IN=str(self.account_config.get("has_future_move_in", False)).lower(),
-                HAS_COURT_ACCOUNT=str(self.account_config.get("has_court_account", False)).lower(),
+                HAS_PAYMENT_ARRANGEMENT=str(
+                    self.account_config.get("has_payment_arrangement", False)
+                ).lower(),
+                HAS_FUTURE_MOVE_IN=str(
+                    self.account_config.get("has_future_move_in", False)
+                ).lower(),
+                HAS_COURT_ACCOUNT=str(
+                    self.account_config.get("has_court_account", False)
+                ).lower(),
             )
         except UnknownEndpointError as exc:
             if exc.status >= 500:
