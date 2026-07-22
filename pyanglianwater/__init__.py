@@ -12,7 +12,7 @@ from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
 from .billing import BillingSummary
 from .meter import SmartMeter, UsageComparison
-from .utils import is_awaitable
+from .utils import is_awaitable, parse_iso_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,8 +31,20 @@ class AnglianWater:
         self.comparison: UsageComparison | None = None
         self.billing: BillingSummary | None = None
         self.updated_data_callbacks: list[Callable] = []
-        self.data_delay: int = 1 # number of days to 'delay' the data
+        self._data_delay: int = 1  # number of days to 'delay' the data
+        self._data_delay_manual: bool = False
         self._first_update = True
+
+    @property
+    def data_delay(self) -> int:
+        """Number of days to delay data (e.g. for cost window start)."""
+        return self._data_delay
+
+    @data_delay.setter
+    def data_delay(self, value: int) -> None:
+        """Manually set data delay; locks out auto-derivation from usage metadata."""
+        self._data_delay = value
+        self._data_delay_manual = True
 
     @property
     def current_tariff(self) -> str:
@@ -42,10 +54,21 @@ class AnglianWater:
 
     async def parse_usages(self, _response, _costs, update_cache: bool = True) -> dict:
         """Parse given usage details."""
-        if "result" in _response:
-            _response = _response["result"]
-        if "records" in _response:
-            _response = _response["records"]
+        first_meter_read_date = None
+        last_meter_read_date = None
+        if isinstance(_response, dict):
+            result = _response["result"] if "result" in _response else _response
+            if isinstance(result, dict):
+                first_raw = result.get("first_meter_read_date")
+                last_raw = result.get("last_meter_read_date")
+                if first_raw:
+                    first_meter_read_date = parse_iso_datetime(first_raw)
+                if last_raw:
+                    last_meter_read_date = parse_iso_datetime(last_raw)
+                    if last_meter_read_date is not None and not self._data_delay_manual:
+                        lag = (dt.today().date() - last_meter_read_date.date()).days
+                        self._data_delay = max(lag, 0)
+                _response = result["records"] if "records" in result else result
         if len(_response) == 0:
             return {}
         # Get meter serial numbers from the nested meters dict
@@ -57,6 +80,8 @@ class AnglianWater:
                     serial_number=serial_number,
                     cost_supported=self.current_tariff in AW_COST_SUPPORTED_TARIFFS
                 )
+            self.meters[serial_number].first_meter_read_date = first_meter_read_date
+            self.meters[serial_number].last_meter_read_date = last_meter_read_date
             if update_cache:
                 self.meters[serial_number].update_reading_cache(_response, _costs)
         return _response
@@ -68,12 +93,16 @@ class AnglianWater:
         update_cache: bool = True,
     ) -> dict:
         """Calculates the usage using the provided date range."""
-        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(days=self.data_delay)
         _response = await self.api.send_request(
             endpoint="get_usage_details",
             body=None,
             account_number=account_number,
             GRANULARITY=str(interval),
+        )
+        # Parse usage first so data_delay can be auto-derived before cost fetch.
+        records = await self.parse_usages(_response, {}, update_cache=False)
+        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(
+            days=self.data_delay
         )
         _costs = {}
         try:
@@ -103,7 +132,11 @@ class AnglianWater:
                 start,
                 exc.response,
             )
-        return await self.parse_usages(_response, _costs, update_cache)
+        if update_cache and records:
+            for meter_data in records[0]["meters"]:
+                serial_number = meter_data["meter_serial_number"]
+                self.meters[serial_number].update_reading_cache(records, _costs)
+        return records
 
     async def get_comparison(self, account_number: str) -> UsageComparison:
         """Get usage comparison data."""

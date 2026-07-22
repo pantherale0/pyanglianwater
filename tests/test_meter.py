@@ -83,8 +83,28 @@ def test_latest_read(smart_meter, sample_readings):  # pylint: disable=redefined
 def test_to_dict(smart_meter, sample_readings):  # pylint: disable=redefined-outer-name
     """Test that to_dict returns a dictionary with all meter data."""
     smart_meter.update_reading_cache(sample_readings, {})
+    smart_meter.last_meter_read_date = datetime.now() - timedelta(days=1)
     meter_dict = smart_meter.to_dict()
     assert meter_dict["serial_number"] == "12345"
     assert meter_dict["last_reading"] == 100.0
     assert meter_dict["consumption"] == 10.0
     assert len(meter_dict["readings"]) == 1
+    assert meter_dict["available"] is True
+    assert meter_dict["last_meter_read_date"] is not None
+
+
+def test_available_missing_last_read(smart_meter):  # pylint: disable=redefined-outer-name
+    """Test that available is False when last_meter_read_date is unset."""
+    assert smart_meter.available is False
+
+
+def test_available_within_max_lag(smart_meter):  # pylint: disable=redefined-outer-name
+    """Test that available is True when last read is within the max lag window."""
+    smart_meter.last_meter_read_date = datetime.now() - timedelta(days=4)
+    assert smart_meter.available is True
+
+
+def test_available_stale(smart_meter):  # pylint: disable=redefined-outer-name
+    """Test that available is False when last read is older than the max lag."""
+    smart_meter.last_meter_read_date = datetime.now() - timedelta(days=5)
+    assert smart_meter.available is False
