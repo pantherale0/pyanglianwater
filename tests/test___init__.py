@@ -10,6 +10,7 @@ from pyanglianwater import (
     API,
     BillingSummary,
     SmartMeter,
+    UnknownEndpointError,
     UsageComparison,
 )
 from pyanglianwater.auth import MSOB2CAuth
@@ -279,6 +280,24 @@ async def test_get_comparison(anglian_water):  # pylint: disable=redefined-outer
     assert result.efficient_home_usage == 4198
     assert result.median_usage == 6652
 
+@pytest.mark.asyncio
+async def test_get_comparison_handles_unknown_endpoint_500(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_comparison handles UnknownEndpointError 500 gracefully."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=UnknownEndpointError(status=500, response="Internal Server Error")
+    )
+    result = await anglian_water.get_comparison(account_number="12345")
+    assert result is None
+    assert anglian_water.comparison is None
+
+@pytest.mark.asyncio
+async def test_get_comparison_raises_unknown_endpoint_error(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_comparison raises UnknownEndpointError for non-500 errors."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=UnknownEndpointError(status=404, response="Not Found")
+    )
+    with pytest.raises(UnknownEndpointError):
+        await anglian_water.get_comparison(account_number="12345")
 
 def test_to_dict_includes_comparison(anglian_water):  # pylint: disable=redefined-outer-name
     """Test that to_dict includes comparison data when available."""
