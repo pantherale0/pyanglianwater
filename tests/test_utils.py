@@ -1,16 +1,16 @@
 """Unit tests for pyanglianwater.utils module."""
 
-import pytest
 import jwt
+import pytest
 
 from pyanglianwater.utils import (
-    is_awaitable,
-    random_string,
     build_code_challenge,
-    hash_data,
+    decode_jwt,
     decode_oauth_redirect,
     encrypt_string_to_charcode_hex,
-    decode_jwt,
+    hash_data,
+    is_awaitable,
+    random_string,
 )
 
 

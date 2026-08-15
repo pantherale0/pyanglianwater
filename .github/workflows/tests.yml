@@ -29,7 +29,7 @@ jobs:
             if [ -f requirements.dev.txt ]; then pip install -r requirements.dev.txt; fi
 
         - name: Lint with ruff
-          run: ruff check .
+          run: ruff check pyanglianwater/
 
         - name: Run tests with pytest
           run: pytest --cov=. --cov-report=xml

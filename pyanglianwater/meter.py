@@ -1,6 +1,6 @@
 """Represent a smart water meter."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from .const import AW_METER_MAX_LAG_DAYS
 from .utils import parse_iso_datetime
@@ -76,13 +76,13 @@ class SmartMeter:
         """Return True when last meter read is within the expected lag window."""
         if self.last_meter_read_date is None:
             return False
-        lag = (datetime.now().date() - self.last_meter_read_date.date()).days
+        lag = (datetime.now(UTC).date() - self.last_meter_read_date.date()).days
         return lag <= AW_METER_MAX_LAG_DAYS
 
     @property
     def get_yesterday_readings(self) -> list:
         """Returns the the previous days readings for the smart meter."""
-        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = datetime.now(UTC) - timedelta(days=1)
         output = []
         for reading in self.readings:
             if (

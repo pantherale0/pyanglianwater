@@ -1,6 +1,6 @@
 """Tests for the authentication module."""
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -13,14 +13,14 @@ from pyanglianwater.exceptions import (
     ConsentRequiredError,
     ExpiredAccessTokenError,
     InteractionRequiredError,
-    MFARequiredError,
-    SelfAssertedError,
     InvalidAccountIdError,
     InvalidClientError,
     InvalidGrantError,
     InvalidRequestError,
     InvalidScopeError,
     LoginRequiredError,
+    MFARequiredError,
+    SelfAssertedError,
     TemporarilyUnavailableError,
     TokenRequestError,
     UnauthorizedClientError,
@@ -117,7 +117,7 @@ async def test_get_token(auth_instance):  # pylint: disable=redefined-outer-name
 async def test_send_refresh_request(auth_instance):  # pylint: disable=redefined-outer-name
     """Test the send_refresh_request method."""
     auth_instance.auth_data = {"access_token": "test_token", "expires_in": 3600}
-    auth_instance.next_refresh = datetime.now() - timedelta(seconds=1)
+    auth_instance.next_refresh = datetime.now(UTC) - timedelta(seconds=1)
     with patch(
         "pyanglianwater.auth.aiohttp.ClientSession.post", new_callable=AsyncMock
     ) as mock_post:
@@ -167,7 +167,7 @@ async def test_send_login_request(auth_instance):  # pylint: disable=redefined-o
 async def test_send_request(auth_instance):  # pylint: disable=redefined-outer-name
     """Test the send_request method."""
     auth_instance.auth_data = {"access_token": "test_token"}
-    auth_instance.next_refresh = datetime.now() + timedelta(seconds=3600)
+    auth_instance.next_refresh = datetime.now(UTC) + timedelta(seconds=3600)
     with patch.object(auth_instance, "send_refresh_request", AsyncMock()):
         mock_response = AsyncMock()
         mock_response.ok = True
@@ -190,16 +190,15 @@ async def test_send_request(auth_instance):  # pylint: disable=redefined-outer-n
 async def test_send_request_expired_token(auth_instance):  # pylint: disable=redefined-outer-name
     """Test send_request raises ExpiredAccessTokenError when token is expired."""
     auth_instance.auth_data = None
-    with patch.object(auth_instance, "send_refresh_request", AsyncMock()):
-        with pytest.raises(ExpiredAccessTokenError):
-            await auth_instance.send_request("GET", "https://example.com/api", None, {})
+    with patch.object(auth_instance, "send_refresh_request", AsyncMock()), pytest.raises(ExpiredAccessTokenError):
+        await auth_instance.send_request("GET", "https://example.com/api", None, {})
 
 
 @pytest.mark.asyncio
 async def test_send_request_invalid_account(auth_instance):  # pylint: disable=redefined-outer-name
     """Test send_request raises InvalidAccountIdError for 403 response."""
     auth_instance.auth_data = {"access_token": "test_token"}
-    auth_instance.next_refresh = datetime.now() + timedelta(seconds=3600)
+    auth_instance.next_refresh = datetime.now(UTC) + timedelta(seconds=3600)
     with patch.object(auth_instance, "send_refresh_request", AsyncMock()):
         mock_response = AsyncMock()
         mock_response.status = 403
@@ -212,18 +211,17 @@ async def test_send_request_invalid_account(auth_instance):  # pylint: disable=r
         with patch.object(
             auth_instance._auth_session, "request",  # pylint: disable=protected-access
             return_value=mock_cm
-        ):
-            with pytest.raises(InvalidAccountIdError):
-                await auth_instance.send_request(
-                    "GET", "https://example.com/api", None, {}
-                )
+        ), pytest.raises(InvalidAccountIdError):
+            await auth_instance.send_request(
+                "GET", "https://example.com/api", None, {}
+            )
 
 
 @pytest.mark.asyncio
 async def test_send_request_unknown_endpoint(auth_instance):  # pylint: disable=redefined-outer-name
     """Test send_request raises UnknownEndpointError for unknown endpoint."""
     auth_instance.auth_data = {"access_token": "test_token"}
-    auth_instance.next_refresh = datetime.now() + timedelta(seconds=3600)
+    auth_instance.next_refresh = datetime.now(UTC) + timedelta(seconds=3600)
     with patch.object(auth_instance, "send_refresh_request", AsyncMock()):
         mock_response = AsyncMock()
         mock_response.status = 500
@@ -237,11 +235,10 @@ async def test_send_request_unknown_endpoint(auth_instance):  # pylint: disable=
         with patch.object(
             auth_instance._auth_session, "request",  # pylint: disable=protected-access
             return_value=mock_cm
-        ):
-            with pytest.raises(UnknownEndpointError):
-                await auth_instance.send_request(
-                    "GET", "https://example.com/api", None, {}
-                )
+        ), pytest.raises(UnknownEndpointError):
+            await auth_instance.send_request(
+                "GET", "https://example.com/api", None, {}
+            )
 
 
 @pytest.mark.parametrize(

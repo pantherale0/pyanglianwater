@@ -1,52 +1,51 @@
 """Authentication handlers."""
 
+import json
+import logging
+import re
 import secrets
 import urllib.parse
-import re
-import logging
-import json
-
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import aiohttp
 
 from .const import (
-    AUTH_MSO_STEP_1_URL,
-    AUTH_MSO_SELF_ASSERTED_URL,
-    AUTH_MSO_GET_TOKEN_URL,
     AUTH_AW_BASE,
+    AUTH_MSO_CLIENT_ID,
     AUTH_MSO_CONFIRM_URL,
     AUTH_MSO_CONFIRM_URL_NO_REMEMBER,
-    AUTH_MSO_SELF_ASSERTED_CONFIRM_URL,
-    AUTH_MSO_CLIENT_ID,
+    AUTH_MSO_GET_TOKEN_URL,
     AUTH_MSO_REDIR_URI,
+    AUTH_MSO_SELF_ASSERTED_CONFIRM_URL,
+    AUTH_MSO_SELF_ASSERTED_URL,
+    AUTH_MSO_STEP_1_URL,
     AW_APP_USER_AGENT,
 )
 from .exceptions import (
+    AccessDeniedError,
+    ConfirmationRedirectError,
+    ConsentRequiredError,
     ExpiredAccessTokenError,
-    UnknownEndpointError,
+    InteractionRequiredError,
     InvalidAccountIdError,
+    InvalidClientError,
     InvalidGrantError,
     InvalidRequestError,
-    InvalidClientError,
-    UnauthorizedClientError,
-    UnsupportedGrantTypeError,
     InvalidScopeError,
-    AccessDeniedError,
-    InteractionRequiredError,
     LoginRequiredError,
-    ConsentRequiredError,
-    TemporarilyUnavailableError,
-    SelfAssertedError,
     MFARequiredError,
-    ConfirmationRedirectError,
+    SelfAssertedError,
+    TemporarilyUnavailableError,
     TokenRequestError,
+    UnauthorizedClientError,
+    UnknownEndpointError,
+    UnsupportedGrantTypeError,
 )
 from .utils import (
-    random_string,
     build_code_challenge,
-    decode_oauth_redirect,
     decode_jwt,
+    decode_oauth_redirect,
+    random_string,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,20 +80,6 @@ ENTRA_ERROR_HINTS = {
 class MSOB2CAuth:
     """Represent an instance of MSO Auth."""
 
-    _auth_session: aiohttp.ClientSession | None = None
-    username: str = None
-    _password: str = None
-    next_refresh: datetime = None
-    auth_data: dict = None
-    _pkce_verifier = random_string(43, 128)
-    _pkce_challenge = None
-    _state = secrets.token_urlsafe(32)
-    _csrf_token: str = ""
-    _cookie_cache: dict = {}
-    _trans_id: str | None = None
-    _mfa_readonly_email: str | None = None
-    _mfa_pending: bool = False
-
     def __init__(self, username, password, session=None, refresh_token=None):
         if session:
             self._auth_session = session
@@ -102,6 +87,16 @@ class MSOB2CAuth:
             self._auth_session = aiohttp.ClientSession()
         self.username = username
         self._password = password
+        self.next_refresh = None
+        self.auth_data = None
+        self._pkce_verifier = random_string(43, 128)
+        self._pkce_challenge = None
+        self._state = secrets.token_urlsafe(32)
+        self._csrf_token = ""
+        self._cookie_cache = {}
+        self._trans_id = None
+        self._mfa_readonly_email = None
+        self._mfa_pending = False
         self._refresh_token = refresh_token
 
     @property
@@ -231,13 +226,12 @@ class MSOB2CAuth:
         """Heuristically determine whether the confirmed page asks for MFA."""
         # In the observed HTML, MFA is signalled via `2fa_login_challenge.html`
         # and the presence of a `verificationCode` input definition.
-        if re.search(r"2fa[_-]login[_-]challenge\.html", html, flags=re.I):
+        if re.search(r"2fa[_-]login[_-]challenge\.html", html, flags=re.IGNORECASE):
             return True
-        if re.search(r"\b2fa\b", html, flags=re.I) and re.search(
-            r'"ID"\s*:\s*"verificationCode"', html, flags=re.I
-        ):
-            return True
-        return False
+        return bool(
+            re.search(r"\b2fa\b", html, flags=re.IGNORECASE)
+            and re.search(r'"ID"\s*:\s*"verificationCode"', html, flags=re.IGNORECASE)
+        )
 
     def _extract_readonly_email_from_mfa_html(self, html: str) -> str | None:
         """Extract readonlyEmail from the MFA page HTML."""
@@ -246,7 +240,7 @@ class MSOB2CAuth:
         match = re.search(
             r'"ID"\s*:\s*"readonlyEmail".{0,800}?"PRE"\s*:\s*"([^"]+?)"',
             html,
-            flags=re.I | re.S,
+            flags=re.IGNORECASE | re.DOTALL,
         )
         if match:
             return match.group(1)
@@ -260,7 +254,7 @@ class MSOB2CAuth:
         settings_match = re.search(
             r"var\s+SETTINGS\s*=\s*\{([^;]+)\};",
             html,
-            flags=re.I | re.S,
+            flags=re.IGNORECASE | re.DOTALL,
         )
         if not settings_match:
             return None
@@ -268,7 +262,7 @@ class MSOB2CAuth:
         csrf_match = re.search(
             r'"csrf"\s*:\s*"([^"]+?)"',
             settings_match.group(1),
-            flags=re.I,
+            flags=re.IGNORECASE,
         )
         if csrf_match:
             return csrf_match.group(1)
@@ -457,10 +451,9 @@ class MSOB2CAuth:
         _LOGGER.debug("B2C Auth: Refreshing access token")
         if self.access_token is None and self.refresh_token is None:
             raise ValueError("Not logged in.")
-        if self.next_refresh is not None:
-            if self.next_refresh > datetime.now():
-                _LOGGER.debug("B2C Auth: Access token not yet expired")
-                return
+        if self.next_refresh is not None and self.next_refresh > datetime.now(UTC):
+            _LOGGER.debug("B2C Auth: Access token not yet expired")
+            return
         token_request_response = await self._auth_session.post(
             AUTH_MSO_GET_TOKEN_URL,
             data=urllib.parse.urlencode(
@@ -486,7 +479,7 @@ class MSOB2CAuth:
         try:
             token_data = await token_request_response.json()
             self.auth_data = token_data
-            self.next_refresh = datetime.now() + timedelta(
+            self.next_refresh = datetime.now(UTC) + timedelta(
                 seconds=token_data["expires_in"]
             )
             self.auth_data = {**self.auth_data, **decode_jwt(self.access_token)}
@@ -593,7 +586,7 @@ class MSOB2CAuth:
             expires_in = int(token_response.get("expires_in", 3600))
         except (ValueError, TypeError):
             expires_in = 3600
-        self.next_refresh = datetime.now() + timedelta(seconds=expires_in)
+        self.next_refresh = datetime.now(UTC) + timedelta(seconds=expires_in)
         self._refresh_token = token_response.get("refresh_token")
         access_token = self.access_token
         if access_token:
@@ -641,7 +634,7 @@ class MSOB2CAuth:
             expires_in = int(token_response.get("expires_in", 3600))
         except (ValueError, TypeError):
             expires_in = 3600
-        self.next_refresh = datetime.now() + timedelta(seconds=expires_in)
+        self.next_refresh = datetime.now(UTC) + timedelta(seconds=expires_in)
         self._refresh_token = token_response.get("refresh_token")
         access_token = self.access_token
         if access_token:

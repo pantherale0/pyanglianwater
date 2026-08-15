@@ -1,16 +1,16 @@
 """The core Anglian Water module."""
 
 import logging
-
-from typing import Callable
-from datetime import timedelta, datetime as dt
+from collections.abc import Callable
+from datetime import UTC, timedelta
+from datetime import datetime as dt
 
 from .api import API
 from .auth import MSOB2CAuth
+from .billing import BillingSummary
 from .const import AW_COST_SUPPORTED_TARIFFS
 from .enum import UsagesReadGranularity
 from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
-from .billing import BillingSummary
 from .meter import SmartMeter, UsageComparison
 from .utils import is_awaitable, parse_iso_datetime
 
@@ -57,7 +57,7 @@ class AnglianWater:
         first_meter_read_date = None
         last_meter_read_date = None
         if isinstance(_response, dict):
-            result = _response["result"] if "result" in _response else _response
+            result = _response.get("result", _response)
             if isinstance(result, dict):
                 first_raw = result.get("first_meter_read_date")
                 last_raw = result.get("last_meter_read_date")
@@ -66,9 +66,9 @@ class AnglianWater:
                 if last_raw:
                     last_meter_read_date = parse_iso_datetime(last_raw)
                     if last_meter_read_date is not None and not self._data_delay_manual:
-                        lag = (dt.today().date() - last_meter_read_date.date()).days
+                        lag = (dt.now(UTC).date() - last_meter_read_date.date()).days
                         self._data_delay = max(lag, 0)
-                _response = result["records"] if "records" in result else result
+                _response = result.get("records", result)
         if len(_response) == 0:
             return {}
         # Get meter serial numbers from the nested meters dict
@@ -101,7 +101,7 @@ class AnglianWater:
         )
         # Parse usage first so data_delay can be auto-derived before cost fetch.
         records = await self.parse_usages(_response, {}, update_cache=False)
-        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(
+        start = dt.now(UTC).replace(hour=23, minute=0, second=0) - timedelta(
             days=self.data_delay
         )
         _costs = {}
@@ -138,16 +138,22 @@ class AnglianWater:
                 self.meters[serial_number].update_reading_cache(records, _costs)
         return records
 
-    async def get_comparison(self, account_number: str) -> UsageComparison:
+    async def get_comparison(self, account_number: str) -> UsageComparison | None:
         """Get usage comparison data."""
-        _response = await self.api.send_request(
-            endpoint="get_comparison",
-            body=None,
-            account_number=account_number,
-        )
-        result = _response.get("result", _response)
-        self.comparison = UsageComparison(result)
-        return self.comparison
+        try:
+            _response = await self.api.send_request(
+                endpoint="get_comparison",
+                body=None,
+                account_number=account_number,
+            )
+        except UnknownEndpointError as exc:
+            if exc.status == 500:
+                return
+            raise
+        else:
+            result = _response.get("result", _response)
+            self.comparison = UsageComparison(result)
+            return self.comparison
 
     async def get_billing_summary(self, account_number: str) -> BillingSummary:
         """Get billing summary data."""
@@ -224,7 +230,7 @@ class AnglianWater:
     def register_callback(self, callback):
         """Register a callback to be called when data is updated."""
         if not callable(callback):
-            raise ValueError("Callback must be callable")
+            raise TypeError("Callback must be callable")
         self.updated_data_callbacks.append(callback)
 
     def remove_callback(self, callback):

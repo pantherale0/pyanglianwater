@@ -1,15 +1,16 @@
 """Tests for the AnglianWater module."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from pyanglianwater import (
-    AnglianWater,
     API,
+    AnglianWater,
     BillingSummary,
     SmartMeter,
+    UnknownEndpointError,
     UsageComparison,
 )
 from pyanglianwater.auth import MSOB2CAuth
@@ -18,7 +19,10 @@ from pyanglianwater.auth import MSOB2CAuth
 @pytest.fixture
 def mock_authenticator():  # pylint: disable=redefined-outer-name
     """Fixture for a mocked MSOB2CAuth object."""
-    return MagicMock(spec=MSOB2CAuth)
+    mock = MagicMock(spec=MSOB2CAuth)
+    mock.username = "testuser"
+    mock.next_refresh = None
+    return mock
 
 
 @pytest.fixture
@@ -61,12 +65,12 @@ async def test_parse_usages(anglian_water):  # pylint: disable=redefined-outer-n
 @pytest.mark.asyncio
 async def test_parse_usages_auto_data_delay(anglian_water):  # pylint: disable=redefined-outer-name
     """Test that parse_usages derives data_delay from last_meter_read_date."""
-    last_read = (datetime.now() - timedelta(days=2)).replace(
+    last_read = (datetime.now(UTC) - timedelta(days=2)).replace(
         hour=23, minute=0, second=0, microsecond=0
     )
     mock_response = {
         "result": {
-            "first_meter_read_date": (datetime.now() - timedelta(days=30)).isoformat(
+            "first_meter_read_date": (datetime.now(UTC) - timedelta(days=30)).isoformat(
                 timespec="seconds"
             ),
             "last_meter_read_date": last_read.isoformat(timespec="seconds"),
@@ -99,7 +103,7 @@ async def test_parse_usages_manual_data_delay_not_overwritten(
     anglian_water.data_delay = 3
     assert anglian_water._data_delay_manual is True  # pylint: disable=protected-access
 
-    last_read = (datetime.now() - timedelta(days=1)).replace(
+    last_read = (datetime.now(UTC) - timedelta(days=1)).replace(
         hour=23, minute=0, second=0, microsecond=0
     )
     mock_response = {
@@ -235,7 +239,7 @@ def test_register_callback(anglian_water):  # pylint: disable=redefined-outer-na
     anglian_water.register_callback(callback)
     assert callback in anglian_water.updated_data_callbacks
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         anglian_water.register_callback("not_callable")
 
 
@@ -279,6 +283,24 @@ async def test_get_comparison(anglian_water):  # pylint: disable=redefined-outer
     assert result.efficient_home_usage == 4198
     assert result.median_usage == 6652
 
+@pytest.mark.asyncio
+async def test_get_comparison_handles_unknown_endpoint_500(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_comparison handles UnknownEndpointError 500 gracefully."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=UnknownEndpointError(status=500, response="Internal Server Error")
+    )
+    result = await anglian_water.get_comparison(account_number="12345")
+    assert result is None
+    assert anglian_water.comparison is None
+
+@pytest.mark.asyncio
+async def test_get_comparison_raises_unknown_endpoint_error(anglian_water):  # pylint: disable=redefined-outer-name
+    """Test that get_comparison raises UnknownEndpointError for non-500 errors."""
+    anglian_water.api.send_request = AsyncMock(
+        side_effect=UnknownEndpointError(status=404, response="Not Found")
+    )
+    with pytest.raises(UnknownEndpointError):
+        await anglian_water.get_comparison(account_number="12345")
 
 def test_to_dict_includes_comparison(anglian_water):  # pylint: disable=redefined-outer-name
     """Test that to_dict includes comparison data when available."""
