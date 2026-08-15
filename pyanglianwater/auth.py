@@ -80,25 +80,24 @@ ENTRA_ERROR_HINTS = {
 class MSOB2CAuth:
     """Represent an instance of MSO Auth."""
 
-    _auth_session: aiohttp.ClientSession | None = None
-    username: str = None
-    _password: str = None
-    next_refresh: datetime = None
-    auth_data: dict = None
-    _pkce_verifier = random_string(43, 128)
-    _pkce_challenge = None
-    _state = secrets.token_urlsafe(32)
-    _csrf_token: str = ""
-    _cookie_cache: dict = {}
-    _trans_id: str | None = None
-    _mfa_readonly_email: str | None = None
-    _mfa_pending: bool = False
-
     def __init__(self, username, password, session=None, refresh_token=None):
         if session:
             self._auth_session = session
         else:
             self._auth_session = aiohttp.ClientSession()
+        self._auth_session: aiohttp.ClientSession | None = None
+        self.username: str = None
+        self._password: str = None
+        self.next_refresh: datetime = None
+        self.auth_data: dict = None
+        self._pkce_verifier = random_string(43, 128)
+        self._pkce_challenge = None
+        self._state = secrets.token_urlsafe(32)
+        self._csrf_token: str = ""
+        self._cookie_cache: dict = {}
+        self._trans_id: str | None = None
+        self._mfa_readonly_email: str | None = None
+        self._mfa_pending: bool = False
         self.username = username
         self._password = password
         self._refresh_token = refresh_token
@@ -232,11 +231,9 @@ class MSOB2CAuth:
         # and the presence of a `verificationCode` input definition.
         if re.search(r"2fa[_-]login[_-]challenge\.html", html, flags=re.IGNORECASE):
             return True
-        if re.search(r"\b2fa\b", html, flags=re.IGNORECASE) and re.search(
+        return re.search(r"\b2fa\b", html, flags=re.IGNORECASE) and re.search(
             r'"ID"\s*:\s*"verificationCode"', html, flags=re.IGNORECASE
-        ):
-            return True
-        return False
+        )
 
     def _extract_readonly_email_from_mfa_html(self, html: str) -> str | None:
         """Extract readonlyEmail from the MFA page HTML."""
@@ -456,10 +453,10 @@ class MSOB2CAuth:
         _LOGGER.debug("B2C Auth: Refreshing access token")
         if self.access_token is None and self.refresh_token is None:
             raise ValueError("Not logged in.")
-        if self.next_refresh is not None:
-            if self.next_refresh > datetime.now(UTC):
-                _LOGGER.debug("B2C Auth: Access token not yet expired")
-                return
+        if (self.next_refresh is not None and 
+            self.next_refresh > datetime.now(UTC)):
+            _LOGGER.debug("B2C Auth: Access token not yet expired")
+            return
         token_request_response = await self._auth_session.post(
             AUTH_MSO_GET_TOKEN_URL,
             data=urllib.parse.urlencode(

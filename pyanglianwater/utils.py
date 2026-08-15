@@ -99,8 +99,8 @@ def decode_oauth_redirect(redir_url: str):
         else:
             _LOGGER.error("Code not found in redirect URI")
             return None
-    except (ValueError, TypeError) as e:
-        _LOGGER.exception("Error decoding redirect URI: %s", e, exc_info=e)
+    except (ValueError, TypeError):
+        _LOGGER.exception("Error decoding redirect URI")
         return None
 
 
@@ -169,8 +169,8 @@ def decode_jwt(token: str) -> dict:
     try:
         decoded = jwt.decode(token, options={"verify_signature": False})
         return decoded
-    except jwt.DecodeError as e:
-        _LOGGER.error("Failed to decode JWT: %s", e)
+    except jwt.DecodeError:
+        _LOGGER.exception("Failed to decode JWT")
         return {}
 
 
