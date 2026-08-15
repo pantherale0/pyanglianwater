@@ -19,7 +19,10 @@ from pyanglianwater.auth import MSOB2CAuth
 @pytest.fixture
 def mock_authenticator():  # pylint: disable=redefined-outer-name
     """Fixture for a mocked MSOB2CAuth object."""
-    return MagicMock(spec=MSOB2CAuth)
+    mock = MagicMock(spec=MSOB2CAuth)
+    mock.username = "testuser"
+    mock.next_refresh = None
+    return mock
 
 
 @pytest.fixture
@@ -236,7 +239,7 @@ def test_register_callback(anglian_water):  # pylint: disable=redefined-outer-na
     anglian_water.register_callback(callback)
     assert callback in anglian_water.updated_data_callbacks
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         anglian_water.register_callback("not_callable")
 
 

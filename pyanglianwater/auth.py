@@ -85,21 +85,18 @@ class MSOB2CAuth:
             self._auth_session = session
         else:
             self._auth_session = aiohttp.ClientSession()
-        self._auth_session: aiohttp.ClientSession | None = None
-        self.username: str = None
-        self._password: str = None
-        self.next_refresh: datetime = None
-        self.auth_data: dict = None
+        self.username = username
+        self._password = password
+        self.next_refresh = None
+        self.auth_data = None
         self._pkce_verifier = random_string(43, 128)
         self._pkce_challenge = None
         self._state = secrets.token_urlsafe(32)
-        self._csrf_token: str = ""
-        self._cookie_cache: dict = {}
-        self._trans_id: str | None = None
-        self._mfa_readonly_email: str | None = None
-        self._mfa_pending: bool = False
-        self.username = username
-        self._password = password
+        self._csrf_token = ""
+        self._cookie_cache = {}
+        self._trans_id = None
+        self._mfa_readonly_email = None
+        self._mfa_pending = False
         self._refresh_token = refresh_token
 
     @property
@@ -231,8 +228,9 @@ class MSOB2CAuth:
         # and the presence of a `verificationCode` input definition.
         if re.search(r"2fa[_-]login[_-]challenge\.html", html, flags=re.IGNORECASE):
             return True
-        return re.search(r"\b2fa\b", html, flags=re.IGNORECASE) and re.search(
-            r'"ID"\s*:\s*"verificationCode"', html, flags=re.IGNORECASE
+        return bool(
+            re.search(r"\b2fa\b", html, flags=re.IGNORECASE)
+            and re.search(r'"ID"\s*:\s*"verificationCode"', html, flags=re.IGNORECASE)
         )
 
     def _extract_readonly_email_from_mfa_html(self, html: str) -> str | None:
@@ -453,8 +451,7 @@ class MSOB2CAuth:
         _LOGGER.debug("B2C Auth: Refreshing access token")
         if self.access_token is None and self.refresh_token is None:
             raise ValueError("Not logged in.")
-        if (self.next_refresh is not None and 
-            self.next_refresh > datetime.now(UTC)):
+        if self.next_refresh is not None and self.next_refresh > datetime.now(UTC):
             _LOGGER.debug("B2C Auth: Access token not yet expired")
             return
         token_request_response = await self._auth_session.post(
