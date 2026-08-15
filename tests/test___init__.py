@@ -1,13 +1,13 @@
 """Tests for the AnglianWater module."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from pyanglianwater import (
-    AnglianWater,
     API,
+    AnglianWater,
     BillingSummary,
     SmartMeter,
     UnknownEndpointError,
@@ -62,12 +62,12 @@ async def test_parse_usages(anglian_water):  # pylint: disable=redefined-outer-n
 @pytest.mark.asyncio
 async def test_parse_usages_auto_data_delay(anglian_water):  # pylint: disable=redefined-outer-name
     """Test that parse_usages derives data_delay from last_meter_read_date."""
-    last_read = (datetime.now() - timedelta(days=2)).replace(
+    last_read = (datetime.now(UTC) - timedelta(days=2)).replace(
         hour=23, minute=0, second=0, microsecond=0
     )
     mock_response = {
         "result": {
-            "first_meter_read_date": (datetime.now() - timedelta(days=30)).isoformat(
+            "first_meter_read_date": (datetime.now(UTC) - timedelta(days=30)).isoformat(
                 timespec="seconds"
             ),
             "last_meter_read_date": last_read.isoformat(timespec="seconds"),
@@ -100,7 +100,7 @@ async def test_parse_usages_manual_data_delay_not_overwritten(
     anglian_water.data_delay = 3
     assert anglian_water._data_delay_manual is True  # pylint: disable=protected-access
 
-    last_read = (datetime.now() - timedelta(days=1)).replace(
+    last_read = (datetime.now(UTC) - timedelta(days=1)).replace(
         hour=23, minute=0, second=0, microsecond=0
     )
     mock_response = {

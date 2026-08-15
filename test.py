@@ -1,12 +1,12 @@
 """Testing."""
 
-import os
-import logging
 import asyncio
+import logging
+import os
 
 import aiohttp
-
 from dotenv import load_dotenv
+
 from pyanglianwater import AnglianWater
 from pyanglianwater.auth import MSOB2CAuth
 from pyanglianwater.exceptions import MFARequiredError

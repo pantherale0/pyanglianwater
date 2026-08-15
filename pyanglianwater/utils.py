@@ -1,29 +1,27 @@
 """Generic utilities to help with encryption and authorization."""
 
+import base64
+import hashlib
+import inspect
+import logging
 import os
 import random
-import hashlib
-import base64
 import urllib.parse
-import logging
-import inspect
-
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding as sym_padding
-
 import jwt
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding as sym_padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from .const import (
-    AW_ENCRYPTION_KEY,
     AW_ENCRYPTION_ITERATIONS,
+    AW_ENCRYPTION_IV_SIZE,
+    AW_ENCRYPTION_KEY,
+    AW_ENCRYPTION_KEY_SIZE,
     AW_ENCRYPTION_PBKDF2_HASH,
     AW_ENCRYPTION_SALT_SIZE,
-    AW_ENCRYPTION_IV_SIZE,
-    AW_ENCRYPTION_KEY_SIZE,
 )
 
 _LOGGER = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ with open("README.md", "r") as readme_file:
 # Inspiration: https://stackoverflow.com/a/7071358/6064135
 with open("pyanglianwater/_version.py", "r", encoding="utf8") as version_file:
     version_groups = re.search(
-        r"^__version__ = ['\"]([^'\"]*)['\"]", version_file.read(), re.M
+        r"^__version__ = ['\"]([^'\"]*)['\"]", version_file.read(), re.MULTILINE
     )
     if version_groups:
         version = version_groups.group(1)

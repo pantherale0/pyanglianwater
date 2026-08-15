@@ -2,8 +2,8 @@
 
 import logging
 from collections.abc import Callable
+from datetime import UTC, timedelta
 from datetime import datetime as dt
-from datetime import timedelta
 
 from .api import API
 from .auth import MSOB2CAuth
@@ -66,7 +66,7 @@ class AnglianWater:
                 if last_raw:
                     last_meter_read_date = parse_iso_datetime(last_raw)
                     if last_meter_read_date is not None and not self._data_delay_manual:
-                        lag = (dt.today().date() - last_meter_read_date.date()).days
+                        lag = (dt.now(UTC).date() - last_meter_read_date.date()).days
                         self._data_delay = max(lag, 0)
                 _response = result.get("records", result)
         if len(_response) == 0:
@@ -101,7 +101,7 @@ class AnglianWater:
         )
         # Parse usage first so data_delay can be auto-derived before cost fetch.
         records = await self.parse_usages(_response, {}, update_cache=False)
-        start = dt.today().replace(hour=23, minute=0, second=0) - timedelta(
+        start = dt.now(UTC).replace(hour=23, minute=0, second=0) - timedelta(
             days=self.data_delay
         )
         _costs = {}
@@ -230,7 +230,7 @@ class AnglianWater:
     def register_callback(self, callback):
         """Register a callback to be called when data is updated."""
         if not callable(callback):
-            raise ValueError("Callback must be callable")
+            raise TypeError("Callback must be callable")
         self.updated_data_callbacks.append(callback)
 
     def remove_callback(self, callback):
