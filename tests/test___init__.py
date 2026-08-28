@@ -155,6 +155,10 @@ async def test_get_usages(anglian_water):  # pylint: disable=redefined-outer-nam
     result = await anglian_water.get_usages(account_number=account_number, update_cache=False)
     assert "12345" in anglian_water.meters
     assert isinstance(result, (dict, list))
+    cost_request = anglian_water.api.send_request.await_args_list[1]
+    delayed_date = datetime.now(UTC).date() - timedelta(days=1)
+    assert cost_request.kwargs["START"] == delayed_date.isoformat() + "T00:00:00"
+    assert cost_request.kwargs["END"] == delayed_date.isoformat() + "T23:00:00"
 
 
 @pytest.mark.asyncio

@@ -101,9 +101,9 @@ class AnglianWater:
         )
         # Parse usage first so data_delay can be auto-derived before cost fetch.
         records = await self.parse_usages(_response, {}, update_cache=False)
-        start = dt.now(UTC).replace(hour=23, minute=0, second=0) - timedelta(
-            days=self.data_delay
-        )
+        start = dt.now(UTC).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        ) - timedelta(days=self.data_delay)
         _costs = {}
         try:
             if self.current_tariff == "Standard":
@@ -112,8 +112,8 @@ class AnglianWater:
                     body=None,
                     account_number=account_number,
                     GRANULARITY=str(interval),
-                    START=start.isoformat(),
-                    END=(start + timedelta(days=1)).isoformat(),
+                    START=start.isoformat(timespec="seconds"),
+                    END=(start + timedelta(hours=23)).isoformat(timespec="seconds"),
                 )
             else:
                 _LOGGER.info(
