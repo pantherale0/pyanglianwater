@@ -1,5 +1,6 @@
 """The core Anglian Water module."""
 
+import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, timedelta
@@ -10,7 +11,11 @@ from .auth import MSOB2CAuth
 from .billing import BillingSummary
 from .const import AW_COST_SUPPORTED_TARIFFS
 from .enum import UsagesReadGranularity
-from .exceptions import SmartMeterUnavailableError, UnknownEndpointError
+from .exceptions import (
+    HourlyReadingsUnavailableError,
+    SmartMeterUnavailableError,
+    UnknownEndpointError,
+)
 from .meter import SmartMeter, UsageComparison
 from .utils import is_awaitable, parse_iso_datetime
 
@@ -93,12 +98,25 @@ class AnglianWater:
         update_cache: bool = True,
     ) -> dict:
         """Calculates the usage using the provided date range."""
-        _response = await self.api.send_request(
-            endpoint="get_usage_details",
-            body=None,
-            account_number=account_number,
-            GRANULARITY=str(interval),
-        )
+        try:
+            _response = await self.api.send_request(
+                endpoint="get_usage_details",
+                body=None,
+                account_number=account_number,
+                GRANULARITY=str(interval),
+            )
+        except UnknownEndpointError as exc:
+            if interval == UsagesReadGranularity.HOURLY and exc.status == 500:
+                try:
+                    payload = json.loads(exc.response)
+                except json.JSONDecodeError:
+                    payload = None
+                result = payload.get("result") if isinstance(payload, dict) else None
+                if isinstance(result, dict) and result.get("errors") == [
+                    {"code": "1", "description": "Failed to retrieve usage data"}
+                ]:
+                    raise HourlyReadingsUnavailableError(exc.status, exc.response) from exc
+            raise
         # Parse usage first so data_delay can be auto-derived before cost fetch.
         records = await self.parse_usages(_response, {}, update_cache=False)
         start = dt.now(UTC).replace(
