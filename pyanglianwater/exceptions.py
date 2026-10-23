@@ -18,6 +18,14 @@ class UnknownEndpointError(HttpException):
     """Defines an unknown error."""
 
 
+class HourlyReadingsUnavailableError(HttpException):
+    """Hourly usage is inferred unavailable from the known API failure response.
+
+    This response does not confirm that hourly readings are disabled.
+    The original HTTP status and response are available for diagnostics.
+    """
+
+
 class ExpiredAccessTokenError(AuthError):
     """401 Unauthorized"""
 

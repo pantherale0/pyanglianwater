@@ -27,6 +27,18 @@ just install
 
 TODO
 
+### Unavailable hourly readings
+
+`AnglianWater.get_usages()` can raise
+`pyanglianwater.exceptions.HourlyReadingsUnavailableError` when the hourly usage
+endpoint returns HTTP 500 with error code `"1"` and description
+`"Failed to retrieve usage data"`. This suggests that hourly readings are
+unavailable, but does not confirm that they are disabled on the account.
+
+The exception exposes the original HTTP `status` and raw `response`, and chains
+the original `UnknownEndpointError` as its cause. Other failures and usage
+frequencies retain their existing error handling.
+
 ## Development
 
 ```bash
