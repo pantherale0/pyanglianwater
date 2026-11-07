@@ -165,7 +165,7 @@ class AnglianWater:
                 account_number=account_number,
             )
         except UnknownEndpointError as exc:
-            if exc.status == 500:
+            if exc.status in [500, 401]:
                 return
             raise
         else:
